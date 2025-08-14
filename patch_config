@@ -14,3 +14,6 @@ OC_APP_BOOT_DELAY=10
 # If this file exists, then auto noapp on boot
 # Designed to allow for a Raspberry Pi in gadget mode to plug in!
 OC_APP_GADGET=/dev/ttyACM0
+
+# Flash with the OpenCentauri custom splash screen
+INCLUDE_CUSTOM_SPLASH=1
