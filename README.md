@@ -58,7 +58,7 @@ If there are two versions of a script, and one has an -ac in the name, this is t
 1. To revert back, you will need to replace your original key and then flash an official ELEGOO firmware. I recommend 1.1.25 for now since it has the most features, and this is what OpenCentauri is (currently) based on.
     1. Update the /etc/swupdate_public.pem key in your /etc directory via ssh to the original ELEGOO firmware signing key (above)
     1. Run the script `./fwdl.sh`, to grab the 1.1.25 Firmware into the FW/ directory
-    1. Copying the new file `FW/FW-CentauriCarbon-v1.1.25-2025-05-09.bin` to your printer's USB stick at the root level, with filename `update.bin`
+    1. Copying the new file `FW/FW-CentauriCarbon-v1.1.40-2025-08-15.bin` to your printer's USB stick at the root level, with filename `update.bin`
     1. Insert USB-stick into printer
     1. Re-boot your printer, and it should offer to update!
 
@@ -86,7 +86,7 @@ OC_APP_BOOT_DELAY=0
 ### Option 1: Manual Build
 
 1. Unpack the firmware of choice: (tested with 1.1.25)
-    `sudo ./unpack.sh FW-CentauriCarbon-v1.1.25-2025-05-09.bin`
+    `sudo ./unpack.sh FW-CentauriCarbon-v1.1.40-2025-08-15.bin`
 1. Run this patch set of updates to the squashfs extracted:
     `sudo ./patch.sh`
 1. Generate a new update.swu:

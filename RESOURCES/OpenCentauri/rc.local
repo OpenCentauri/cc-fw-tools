@@ -53,6 +53,7 @@ fi
 # BEGIN: Start Centauri Carbon /app/app after optional delay
 # logread -f -F /board-resource/lastlog &
 if [ -f /app/app ]; then
+    echo 3 > /proc/sys/vm/drop_caches
     ulimit -c unlimited
     chmod +x /coredump_helper.sh
     echo "|/coredump_helper.sh %p %t" | tee /proc/sys/kernel/core_pattern
