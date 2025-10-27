@@ -3,8 +3,6 @@
 ## Summary
 Binary patching of 0x2c81f8 performed to update the bowden tube length from 700mm to any desired value
 
-**Current bsdiff sets this to 10mm for testing only - do not use!**
-
 ---
 
 ## Verification
@@ -16,4 +14,4 @@ Binary patching of 0x2c81f8 performed to update the bowden tube length from 700m
 
 ## TODO
 - [x] Write parameterized script to accept user-entered Bowden length values  
-~~- [x] Generate and apply `bsdiff` at runtime~~ 
+~~- Generate and apply `bsdiff` at runtime~~ 

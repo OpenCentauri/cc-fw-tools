@@ -14,9 +14,11 @@ from pathlib import Path
 
 # -------------------------------------------------------------------
 # Bed-mesh temp patch:
-#   Replace ASCII "M109 S60" -> "M109 SXX"  (XX comes from BED_MESH_TEMP)
+#   Replace "M109 S60" -> "M109 SXX"  (XX comes from BED_MESH_TEMP)
 #   Only allow 35–99 inclusive to prevent low temps and byte shift.
 #
+BASE_VA = 0x00010000                   
+TARGET_VA = 0x036D7BC                      # (data_36d7bc)
 EXPECTED_BEFORE_HEX = "4D31303920533630"   # hex bytes for ASCII "M109 S60"
 # -------------------------------------------------------------------
 
@@ -40,7 +42,7 @@ if not project_root or not squashfs_root:
 project_root = Path(project_root)
 squashfs_root = Path(squashfs_root)
 
-# --- read BED_MESH_TEMP from patch_config ---
+# read BED_MESH_TEMP from patch_config
 cfg_file = project_root / "oc-patches" / "patch_config"
 
 # bail for bad data
@@ -89,61 +91,32 @@ except Exception as e:
     print(f"[INFO] ERROR: failed to read working file: {e}", file=sys.stderr)
     sys.exit(1)
 
-needle = b"M109 S60"
+# start patch
+file_off = TARGET_VA - BASE_VA
+if file_off < 0 or file_off + 8 > len(data):
+    print(f"[INFO] ERROR: invalid offset 0x{file_off:X}", file=sys.stderr)
+    try: work.unlink(missing_ok=True)
+    except Exception: pass
+    sys.exit(0)
+
+before_slice = bytes(data[file_off:file_off+8])
 expected = bytes.fromhex(EXPECTED_BEFORE_HEX)
 
 # This may prevent the entire app from being killed by this change going wrong?  TODO - something better than this
-hits = []
-start = 0
-while True:
-    i = data.find(needle, start)
-    if i == -1:
-        break
-    hits.append(i)
-    start = i + 1
-
-if len(hits) == 0:
-    print(
-        f"[INFO] ERROR: pattern 'M109 S60' not found; expected bytes {expected.hex().upper()}\n"
-        f"         → skipping patch (bytes don't match, unsafe)",
-        file=sys.stderr
-    )
-    try:
-        work.unlink(missing_ok=True)
-    except Exception:
-        pass
-    sys.exit(0)
-
-if len(hits) > 1:
-    print(
-        f"[INFO] ERROR: pattern 'M109 S60' found {len(hits)} times; "
-        f"         → skipping patch (ambiguous, unsafe)",
-        file=sys.stderr
-    )
-    try:
-        work.unlink(missing_ok=True)
-    except Exception:
-        pass
-    sys.exit(0)
-
-# write change
-hit = hits[0]
-before_slice = bytes(data[hit:hit+len(needle)])
 if before_slice != expected:
     print(
-        f"[INFO] ERROR: pre-patch bytes mismatch at 0x{hit:X}\n"
+        f"[INFO] ERROR: pre-patch bytes mismatch at 0x{file_off:X}\n"
         f"         found    {before_slice.hex().upper()}\n"
         f"         expected {expected.hex().upper()}\n"
         f"         → skipping patch (unsafe)",
         file=sys.stderr
     )
-    try:
-        work.unlink(missing_ok=True)
-    except Exception:
-        pass
+    try: work.unlink(missing_ok=True)
+    except Exception: pass
     sys.exit(0)
 
-digits_off = hit + len(needle) - 2
+# write change
+digits_off = file_off + 6
 data[digits_off:digits_off+2] = f"{bed_mesh_temp:02d}".encode("ascii")
 
 try:
@@ -161,11 +134,19 @@ except Exception as e:
     sys.exit(1)
 
 # Debug only text included, remove later
-after_slice = bytes(data[hit:hit+len(needle)])
+after_slice = bytes(data[file_off:file_off+8])
 def _hex(b: bytes) -> str:
     return b.hex().upper()
 
+# cleanup
+try:
+    if bak.is_file():
+        bak.unlink()
+        print(f"[INFO] Cleanup: removed backup file {bak}")
+except Exception as e:
+    print(f"[WARN] Could not remove backup file {bak}: {e}", file=sys.stderr)
+
 print(
     f"[INFO] Patch successful — bed-mesh temp set: 'M109 S60' -> 'M109 S{bed_mesh_temp:02d}'  "
-    f"-  (DEBUG - at 0x{hit:X}: { _hex(before_slice) } → { _hex(after_slice) })"
+    f"-  (DEBUG - at 0x{file_off:X}: { _hex(before_slice) } → { _hex(after_slice) })"
 )
