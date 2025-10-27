@@ -8,7 +8,7 @@ OC_BOOTSTRAP_MD5=a0a2eb05011884f1ab281ed4980ee3a7
 
 # How long to wait until starting /app/app on boot
 # If non-zero, you can SSH in after boot and run 'noapp' to prevent start
-OC_APP_BOOT_DELAY=0
+OC_APP_BOOT_DELAY=10
 
 # Default NTP Server
 OC_NTP_SERVER=pool.ntp.org

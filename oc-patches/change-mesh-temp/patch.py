@@ -1,14 +1,9 @@
 #!/usr/bin/env python3
-# - this is likely to break other firmware apps completely
-# -- TODO:  Write this in a way that is actually safe at some point
-
-#### VERY EXPERIMENTAL - HAVE NOT TRIED PATCH ON CC YET ####
-#### IF YOU ARE READING THIS, DO NOT RUN THIS PATCH YET ####
+# - Only tested on 1.1.40 app binary
 
 import os
 import re
 import sys
-import struct
 import shutil
 from pathlib import Path
 
@@ -19,16 +14,12 @@ from pathlib import Path
 #
 BASE_VA = 0x00010000                       # base address
 TARGET_VA = 0x036D7BC                      # address of string "M190 S60" (data_36d7bc)
-EXPECTED_BEFORE_HEX = "4D31393020533630"   # "M190 S60"
+EXPECTED_BEFORE = bytes.fromhex("4D31393020533630")  # "M190 S60"
 # -------------------------------------------------------------------
 
 # rootcheck
-if hasattr(os, "geteuid"):
-    if os.geteuid() != 0:
-        print("[INFO] Skipping: requires root.", file=sys.stderr)
-        sys.exit(0)
-else:
-    print("[INFO] Skipping this patch: root check unavailable on this platform.", file=sys.stderr)
+if hasattr(os, "geteuid") and os.geteuid() != 0:
+    print("[INFO] Skipping: requires root.", file=sys.stderr)
     sys.exit(0)
 
 # env/path
@@ -45,23 +36,18 @@ squashfs_root = Path(squashfs_root)
 # read BED_MESH_TEMP from patch_config
 cfg_file = project_root / "oc-patches" / "patch_config"
 
-# bail for bad data
 try:
     cfg_text = cfg_file.read_text(encoding="utf-8", errors="replace")
+    m = re.search(r'^BED_MESH_TEMP\s*=\s*([^\r\n#]+)', cfg_text, flags=re.MULTILINE)
 except FileNotFoundError:
-    print("[INFO] BED_MESH_TEMP not found; skipping patch.")
+    print("[INFO] Config file not found; skipping patch.")
     sys.exit(0)
 
-if "BED_MESH_TEMP=" not in cfg_text:
-    print("[INFO] BED_MESH_TEMP not found; skipping patch.")
+if not m:
+    print("[INFO] BED_MESH_TEMP not found in config; skipping patch.")
     sys.exit(0)
 
 # sanitize
-m = re.search(r'^BED_MESH_TEMP\s*=\s*([^\r\n#]+)', cfg_text, flags=re.MULTILINE)
-if not m:
-    print("[INFO] BED_MESH_TEMP not found; skipping patch.")
-    sys.exit(0)
-
 temp_raw = m.group(1).strip()
 if not re.fullmatch(r'\d+', temp_raw):
     print("[INFO] BED_MESH_TEMP invalid (non-integer); skipping patch.")
@@ -69,7 +55,7 @@ if not re.fullmatch(r'\d+', temp_raw):
 
 bed_mesh_temp = int(temp_raw, 10)
 if not (35 <= bed_mesh_temp <= 99):
-    print("[INFO] BED_MESH_TEMP invalid (needs integer 35–99); skipping patch.")
+    print("[INFO] BED_MESH_TEMP invalid (requires integer 35–99); skipping patch.")
     sys.exit(0)
 
 # skip if no change (60 in cfg)
@@ -83,7 +69,7 @@ orig = app_dir / "app"
 work = app_dir / "app-patch"
 
 if not orig.is_file():
-    print(f"[INFO] ERROR: target file not found: {orig}", file=sys.stderr)
+    print(f"ERROR: target file not found: {orig}", file=sys.stderr)
     sys.exit(1)
 
 shutil.copyfile(orig, work)
@@ -91,35 +77,28 @@ shutil.copyfile(orig, work)
 try:
     data = bytearray(work.read_bytes())
 except Exception as e:
-    print(f"[INFO] ERROR: failed to read working file: {e}", file=sys.stderr)
+    print(f"ERROR: failed to read working file: {e}", file=sys.stderr)
     sys.exit(1)
 
 # Check/find
 file_off = TARGET_VA - BASE_VA
 if file_off < 0 or file_off + 8 > len(data):
-    print(f"[INFO] ERROR: invalid offset 0x{file_off:X}", file=sys.stderr)
-    try:
-        work.unlink(missing_ok=True)
-    except Exception:
-        pass
+    print(f"ERROR: invalid offset 0x{file_off:X}", file=sys.stderr)
+    work.unlink(missing_ok=True)
     sys.exit(0)
 
 before_slice = bytes(data[file_off:file_off+8])
-expected = bytes.fromhex(EXPECTED_BEFORE_HEX)
 
-# This may prevent the entire app from being killed by this change going wrong?  TODO - something better than this
-if before_slice != expected:
+# Confirm location
+if before_slice != EXPECTED_BEFORE:
     print(
-        f"[INFO] ERROR: pre-patch bytes mismatch at 0x{file_off:X}\n"
-        f"         found    {before_slice.hex().upper()}\n"
-        f"         expected {expected.hex().upper()}\n"
-        f"         → skipping patch (unsafe)",
+        f"ERROR: pre-patch bytes mismatch at 0x{file_off:X}\n"
+        f"       found    {before_slice.hex().upper()}\n"
+        f"       expected {EXPECTED_BEFORE.hex().upper()}\n"
+        f"       → skipping patch (unsafe)",
         file=sys.stderr
     )
-    try:
-        work.unlink(missing_ok=True)
-    except Exception:
-        pass
+    work.unlink(missing_ok=True)
     sys.exit(0)
 
 # write change: keep "M190 S", change last two digits
@@ -129,7 +108,7 @@ data[digits_off:digits_off+2] = f"{bed_mesh_temp:02d}".encode("ascii")
 try:
     work.write_bytes(data)
 except Exception as e:
-    print(f"[INFO] ERROR: failed to write working file: {e}", file=sys.stderr)
+    print(f"ERROR: failed to write working file: {e}", file=sys.stderr)
     sys.exit(1)
 
 bak = orig.with_suffix(".bak")
@@ -137,15 +116,11 @@ try:
     shutil.copyfile(orig, bak)
     shutil.move(str(work), str(orig))
 except Exception as e:
-    print(f"[INFO] ERROR: failed to replace original app: {e}", file=sys.stderr)
+    print(f"ERROR: failed to replace original app: {e}", file=sys.stderr)
     sys.exit(1)
 
-# Debug only text included, remove later
 after_slice = bytes(data[file_off:file_off+8])
-def _hex(b: bytes) -> str:
-    return b.hex().upper()
-
 print(
     f"[INFO] Patch successful — bed-mesh temp set: 'M190 S60' -> 'M190 S{bed_mesh_temp:02d}'  "
-    f"-  (DEBUG - at 0x{file_off:X}: { _hex(before_slice) } → { _hex(after_slice) })"
+    f"-  (DEBUG - at 0x{file_off:X}: {before_slice.hex().upper()} → {after_slice.hex().upper()})"
 )
