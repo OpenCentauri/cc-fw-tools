@@ -21,7 +21,7 @@ from pathlib import Path
 EXPECTED_SIZE = 3953044
 
 # Expected masked SHA-256 of patched app (patched regions are excluded)
-EMBEDDED_MASKED_SHA = "e98d41e382d7dab8c1ccd740b695480435a8883ce538e19218d86a4717e4b12c"
+EMBEDDED_MASKED_SHA = "3a51c93e2d9fb9a4f93da97f1fccca4734af4b9a5a30a50a8005af9969e5870d"
 
 EXPECTED = {
     0x00010400: 0x3E,

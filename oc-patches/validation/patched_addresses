@@ -1,6 +1,6 @@
 # Offsets are file offsets (base VA 0x10000). Format: 0xOFFSET 0xLENGTH 
 0x2B81F8 0x8     # bowden_len_double (double @ 0x2C81F8 VA)
-0x35D7C2 0x2     # bed_mesh_temp_digits ("M190 S60" -> "SXX")
+0x35D7C6 0x2     # bed_mesh_temp_digits ("M190 S60" -> "SXX")
 0x34F6E8 0xF     # fw_version_string
 0x2D26E4 0x28    # api_busy_check
 0x2C6A90 0x4     # api_fan_speed_check
