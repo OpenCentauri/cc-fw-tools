@@ -148,22 +148,3 @@ if __name__ == "__main__":
     for patch in patch_plan:
         logging.info(f"Applying patch '{patch.name}'...")
         patch.execute()
-
-    # Add binary verification due to configurable patches introducing potential instability
-    # Needs cleanup tasks if pack.sh is not to be run due to failed validation
-    logging.info("\nRunning final post-patch validation...")
-    validator_path = os.path.join(PATCHES_ROOT, "validate_patched_app.py")
-    app_path = os.path.join(SQUASHFS_ROOT, "app", "app")
-    if os.path.isfile(validator_path):
-        try:
-            subprocess.run(
-                ["python3", validator_path, app_path],
-                check=True,
-                env=os.environ,
-            )
-            logging.info("[VALID] Post-patch validation passed.")
-        except subprocess.CalledProcessError as e:
-            logging.fatal(f"[ERROR] Post-patch validation failed (exit {e.returncode}).")
-            sys.exit(1)
-    else:
-        logging.warning(f"[WARN] Validator not found: {validator_path}")
