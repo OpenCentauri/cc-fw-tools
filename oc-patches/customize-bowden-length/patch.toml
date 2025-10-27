@@ -1,5 +1,5 @@
 id   = "bowden_length"
-name = "Parametric runout distance (Bowden length)"
+name = "Customize bowden tube length"
 compatible_versions = ["1.1.40"]
 after = ["base"]
 run = ["./patch.py"]

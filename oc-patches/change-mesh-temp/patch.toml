@@ -1,5 +1,5 @@
-id   = "bowden_length"
-name = "Parametric runout distance (Bowden length)"
+id   = "bed_mesh_temp"
+name = "Customize bed mesh temperature"
 compatible_versions = ["1.1.40"]
 after = ["base"]
 run = ["./patch.py"]
