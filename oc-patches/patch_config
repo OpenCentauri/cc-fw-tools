@@ -23,11 +23,11 @@ API_DURING_PRINTING=true
 DISABLE_EXHAUST_FAN=true
 ADD_CHAMBER_LIGHT_GCODE=true
 HOME_POSITION_FRONT_RIGHT=true
-REPLACE_BOOTLOGO=true
+REPLACE_BOOTLOGO=fasle
 SET_FIRMWARE_VERSION=true
 ALWAYS_ALLOW_Z_OFFSET_ADJUST=true
 
-# 10-999mm allowed for bowden length - max can be increased if desired
-BOWDEN_LENGTH_MM=700
-#ONLY 35-99 are allowed for bed mesh - BIQU coldplate to max byte space (99) allowed)
+# 10-999mm (700 is CC default) allowed for bowden length - max can be increased if desired
+BOWDEN_LENGTH_MM=710
+#ONLY 35-99 are allowed for bed mesh - BIQU coldplate to max byte space allowed)
 BED_MESH_TEMP=99

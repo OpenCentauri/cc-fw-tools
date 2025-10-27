@@ -9,7 +9,7 @@ cat ./rc.local >> "$SQUASHFS_ROOT/etc/rc.local"
 echo "Running final post-patch validation..."
 APP_PATH="$SQUASHFS_ROOT/app/app"
 if [ -f "$APP_PATH" ]; then
-    python3 "$PATCHES_ROOT/validate_patched_app.py" "$APP_PATH"
+    python3 "$PATCHES_ROOT/validation/validate_patched_app.py" "$APP_PATH"
     if [ $? -ne 0 ]; then
         echo "[ERROR] Binary validation failed — aborting finalization."
         exit 1
