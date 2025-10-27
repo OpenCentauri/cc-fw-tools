@@ -14,12 +14,12 @@ from pathlib import Path
 
 # -------------------------------------------------------------------
 # Bed-mesh temp patch:
-#   Replace "M109 S60" -> "M109 SXX"  (XX comes from BED_MESH_TEMP)
+#   Replace "M190 S60" -> "M190 SXX"  (XX comes from BED_MESH_TEMP in patch_config)
 #   Only allow 35–99 inclusive to prevent low temps and byte shift.
 #
-BASE_VA = 0x00010000                   
-TARGET_VA = 0x036D7BC                      # (data_36d7bc)
-EXPECTED_BEFORE_HEX = "4D31303920533630"   # hex bytes for ASCII "M109 S60"
+BASE_VA = 0x00010000                       # base address
+TARGET_VA = 0x036D7BC                      # address of string "M190 S60" (data_36d7bc)
+EXPECTED_BEFORE_HEX = "4D31393020533630"   # "M190 S60"
 # -------------------------------------------------------------------
 
 # rootcheck
@@ -72,7 +72,10 @@ if not (35 <= bed_mesh_temp <= 99):
     print("[INFO] BED_MESH_TEMP invalid (needs integer 35–99); skipping patch.")
     sys.exit(0)
 
-print(f"[INFO] Applying patch 'Change M109 S60 to S{bed_mesh_temp:02d}'...")
+# skip if no change (60 in cfg)
+if bed_mesh_temp == 60:
+    print("[INFO] BED_MESH_TEMP is set to 60 (stock) - no change; skipping patch.")
+    sys.exit(0)
 
 # get app
 app_dir = squashfs_root / "app"
@@ -91,12 +94,14 @@ except Exception as e:
     print(f"[INFO] ERROR: failed to read working file: {e}", file=sys.stderr)
     sys.exit(1)
 
-# start patch
+# Check/find
 file_off = TARGET_VA - BASE_VA
 if file_off < 0 or file_off + 8 > len(data):
     print(f"[INFO] ERROR: invalid offset 0x{file_off:X}", file=sys.stderr)
-    try: work.unlink(missing_ok=True)
-    except Exception: pass
+    try:
+        work.unlink(missing_ok=True)
+    except Exception:
+        pass
     sys.exit(0)
 
 before_slice = bytes(data[file_off:file_off+8])
@@ -111,11 +116,15 @@ if before_slice != expected:
         f"         → skipping patch (unsafe)",
         file=sys.stderr
     )
-    try: work.unlink(missing_ok=True)
-    except Exception: pass
+    try:
+        work.unlink(missing_ok=True)
+    except Exception:
+        pass
     sys.exit(0)
 
-# write change
+print(f"[INFO] Applying patch 'Change M190 S60 to S{bed_mesh_temp:02d}'...")
+
+# write change: keep "M190 S", change last two digits
 digits_off = file_off + 6
 data[digits_off:digits_off+2] = f"{bed_mesh_temp:02d}".encode("ascii")
 
@@ -138,15 +147,7 @@ after_slice = bytes(data[file_off:file_off+8])
 def _hex(b: bytes) -> str:
     return b.hex().upper()
 
-# cleanup
-try:
-    if bak.is_file():
-        bak.unlink()
-        print(f"[INFO] Cleanup: removed backup file {bak}")
-except Exception as e:
-    print(f"[WARN] Could not remove backup file {bak}: {e}", file=sys.stderr)
-
 print(
-    f"[INFO] Patch successful — bed-mesh temp set: 'M109 S60' -> 'M109 S{bed_mesh_temp:02d}'  "
+    f"[INFO] Patch successful — bed-mesh temp set: 'M190 S60' -> 'M190 S{bed_mesh_temp:02d}'  "
     f"-  (DEBUG - at 0x{file_off:X}: { _hex(before_slice) } → { _hex(after_slice) })"
 )

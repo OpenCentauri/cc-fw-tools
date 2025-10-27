@@ -26,6 +26,8 @@ HOME_POSITION_FRONT_RIGHT=true
 REPLACE_BOOTLOGO=true
 SET_FIRMWARE_VERSION=true
 ALWAYS_ALLOW_Z_OFFSET_ADJUST=true
-BOWDEN_LENGTH_MM=567
+
+# 10-999mm allowed for bowden length - max can be increased if desired
+BOWDEN_LENGTH_MM=700
 #ONLY 35-99 are allowed for bed mesh - BIQU coldplate to max byte space (99) allowed)
 BED_MESH_TEMP=99
