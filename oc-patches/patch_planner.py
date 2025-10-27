@@ -155,15 +155,15 @@ if __name__ == "__main__":
     validator_path = os.path.join(PATCHES_ROOT, "validate_patched_app.py")
     app_path = os.path.join(SQUASHFS_ROOT, "app", "app")
     if os.path.isfile(validator_path):
-    try:
-        subprocess.run(
-            ["python3", validator_path, app_path],
-            check=True,
-            env=os.environ,
-        )
-        logging.info("[VALID] Post-patch validation passed.")
-    except subprocess.CalledProcessError as e:
-        logging.fatal(f"[ERROR] Post-patch validation failed (exit {e.returncode}).")
-        sys.exit(1)
+        try:
+            subprocess.run(
+                ["python3", validator_path, app_path],
+                check=True,
+                env=os.environ,
+            )
+            logging.info("[VALID] Post-patch validation passed.")
+        except subprocess.CalledProcessError as e:
+            logging.fatal(f"[ERROR] Post-patch validation failed (exit {e.returncode}).")
+            sys.exit(1)
     else:
         logging.warning(f"[WARN] Validator not found: {validator_path}")
