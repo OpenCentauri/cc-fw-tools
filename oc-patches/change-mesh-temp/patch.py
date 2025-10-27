@@ -122,8 +122,6 @@ if before_slice != expected:
         pass
     sys.exit(0)
 
-print(f"[INFO] Applying patch 'Change M190 S60 to S{bed_mesh_temp:02d}'...")
-
 # write change: keep "M190 S", change last two digits
 digits_off = file_off + 6
 data[digits_off:digits_off+2] = f"{bed_mesh_temp:02d}".encode("ascii")

@@ -61,8 +61,6 @@ if not (10 <= bowden_mm <= 999):
     print("[INFO] BOWDEN_LENGTH_MM invalid (needs integer 10–999); skipping patch.")
     sys.exit(0)
 
-print(f"[INFO] Applying patch 'Custom bowden length'...  (target length: {bowden_mm} mm)")
-
 # get app
 app_dir = squashfs_root / "app"
 orig = app_dir / "app"
