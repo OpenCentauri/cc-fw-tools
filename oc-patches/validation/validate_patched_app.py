@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import sys, mmap, hashlib, os, re
+import sys, mmap, hashlib, os, re, subprocess, tempfile, shutil
 from pathlib import Path
 
 # -------------------------------------------------------------------
@@ -20,9 +20,6 @@ from pathlib import Path
 # Expected file size in bytes (from unpatched 1.1.40 app)
 EXPECTED_SIZE = 3953044
 
-# Expected masked SHA-256 of patched app (patched regions are excluded)
-EMBEDDED_MASKED_SHA = "7ac68e8984938108e30e5b178201860ee1e4f48fb9f3feb7fa217bd82d442443"
-
 EXPECTED = {
     0x00010400: 0x3E,
     0x00180000: 0x08,
@@ -32,7 +29,6 @@ EXPECTED = {
 }
 
 def fail(msg: str, code: int = 1):
-    #print(f"[FAIL] {msg}", file=sys.stderr)
     sys.exit(code)
 
 def sha256_file(p: Path) -> str:
@@ -130,31 +126,57 @@ def main():
         errors.append("fixed-byte check failed\n" + "\n".join(msg_lines))
     else:
         nicetext = ", ".join(f"0x{o:X}" for o in EXPECTED)
-        #print(f"[VALID] fixed bytes OK — {len(EXPECTED)} offsets match ({nicetext})")
-
-    # full-file SHA
-    # print(f"[INFO] sha256={sha256_file(app_path)}")
 
     # masked SHA
     ranges_file = _addresses_path()
     ranges = _merge_ranges(_parse_addresses_file(ranges_file))
     if not ranges:
         errors.append(f"patched_addresses not found or empty at {ranges_file}")
-        masked = None
     else:
-        masked = masked_sha256_file(app_path, ranges)
-        #print(f"[INFO] masked_sha256={masked}")
-        #if EMBEDDED_MASKED_SHA:
-            #if masked != EMBEDDED_MASKED_SHA:
-            #    errors.append(
-            #        "masked SHA mismatch\n"
-            #        f"  expected={EMBEDDED_MASKED_SHA}\n"
-            #        f"  found   ={masked}"
-            #    )
-            #else:
-                #print("[VALID] masked SHA matches embedded reference")
+        patched_masked = masked_sha256_file(app_path, ranges)
 
-    # final decision
+        rootfs_dir_env = os.environ.get("ROOTFS_DIR")
+        if rootfs_dir_env:
+            rootfs_img = Path(rootfs_dir_env).parent / "rootfs"
+        else:
+            proj_root = Path(__file__).resolve().parents[2]
+            rootfs_img = proj_root / "unpacked" / "rootfs"
+
+    if not rootfs_img.is_file():
+        errors.append(f"could not locate pristine SquashFS image at {rootfs_img}")
+    else:
+        # Extract pristine app into a temp dir
+        with tempfile.TemporaryDirectory() as td:
+            td_path = Path(td)
+            r = subprocess.run(
+                ["unsquashfs", "-no-progress", str(rootfs_img)],
+                cwd=str(td_path),
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            )
+
+            base = td_path / "squashfs-root"
+            cand1 = base / "app" / "app"
+            cand2 = base / "app"
+            pristine_app = cand1 if cand1.is_file() else (cand2 if cand2.is_file() else None)
+
+            if pristine_app is None:
+                # Neither method produced the app; record unsquashfs stderr but do not crash the script
+                errors.append(
+                    "Failed to extract pristine app from unpacked/rootfs.\n"
+                    f"  unsquashfs rc={r.returncode} err={(r.stderr or '').strip() or '(no stderr)'}\n"
+                    "  Tip: install 'squashfs-tools-ng' for sqfs2tar fallback."
+                )
+            else:
+                # Actual SHA comparison
+                ref_masked = masked_sha256_file(pristine_app, ranges)
+                if patched_masked != ref_masked:
+                    errors.append(
+                        "masked SHA mismatch vs pristine app from unpacked/rootfs\n"
+                        f"  expected={ref_masked}\n"
+                        f"  found   ={patched_masked}"
+                    )
+
+    # overall pass/fail
     if errors:
         print("[FAIL] validation failed:", file=sys.stderr)
         for e in errors:
