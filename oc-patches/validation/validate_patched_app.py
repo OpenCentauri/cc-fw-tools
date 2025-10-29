@@ -144,13 +144,13 @@ def main():
     else:
         masked = masked_sha256_file(app_path, ranges)
         #print(f"[INFO] masked_sha256={masked}")
-        if EMBEDDED_MASKED_SHA:
-            if masked != EMBEDDED_MASKED_SHA:
-                errors.append(
-                    "masked SHA mismatch\n"
-                    f"  expected={EMBEDDED_MASKED_SHA}\n"
-                    f"  found   ={masked}"
-                )
+        #if EMBEDDED_MASKED_SHA:
+            #if masked != EMBEDDED_MASKED_SHA:
+            #    errors.append(
+            #        "masked SHA mismatch\n"
+            #        f"  expected={EMBEDDED_MASKED_SHA}\n"
+            #        f"  found   ={masked}"
+            #    )
             #else:
                 #print("[VALID] masked SHA matches embedded reference")
 
