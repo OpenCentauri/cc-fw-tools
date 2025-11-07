@@ -1,0 +1,4 @@
+id = "wait_for_chamber_temp"
+name = "Allow use of TEMPERATURE_WAIT with SENSOR=box"
+after = ["base"]
+compatible_versions = ["1.1.40"]
