@@ -3,3 +3,4 @@ name = "Customize bowden tube length"
 compatible_versions = ["1.1.40"]
 after = ["base"]
 run = ["./patch.py"]
+execution_policy = "Always"
