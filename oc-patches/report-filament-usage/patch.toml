@@ -1,0 +1,4 @@
+id = "report_filament_usage"
+name = "Adds both cumulative filament usage (per print) and filament requested per 250ms exports in PrintStats JSON"
+after = ["base"]
+compatible_versions = ["1.1.40"]
