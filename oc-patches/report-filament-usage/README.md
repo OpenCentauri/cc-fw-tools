@@ -38,7 +38,7 @@ All offsets below are **file offsets** (0-based) as seen in Binary Ninja.
 - Patches an existing JSON writer site so that execution branches to the new
   asm, then returns back to the stock code path.
 
-### 2. Function
+### 2. New assembly instructions
 
 - **Range**: `0x00392680` – `0x00392747`
 - Implements the new logic:
