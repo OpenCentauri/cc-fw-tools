@@ -11,3 +11,8 @@
 0x2BBB14 0x4    # TODO - discover
 0x155A30 0x4    # TEMPERATURE_WAIT hook: bl -> b 0x00391EC0
 0x381EC0 0xD8   # TEMPERATURE_WAIT new assembly: 0x00391EC0–0x00391F94
+0x1DEB18 0x4    # PrintStats JSON hook (branch to 0x00392680)
+0x1DEB20 0x4    # PrintStats JSON hook clobber space
+0x3825A0 0x33   # Total filament usage hex key string
+0x382630 0x2D   # Current delta filament usage hex key string
+0x382680 0xC8   # PrintStats filament-reporting instructions (0x00392680–0x00392747)
