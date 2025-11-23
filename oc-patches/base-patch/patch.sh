@@ -118,6 +118,10 @@ chmod 755 ./usr/sbin/mount_usb
 cat "$CURRENT_PATCH_PATH/mount_usb_daemon" > ./usr/sbin/mount_usb_daemon
 chmod 755 ./usr/sbin/mount_usb_daemon
 
+echo Installing SSL certificates
+cp "$CURRENT_PATCH_PATH/ca-bundle.crt" ./etc/ca-bundle.crt
+sed -i '/^export PS1=/a export SSL_CERT_FILE="\/etc\/ca-bundle.crt"' ./etc/profile
+
 echo Setup uninstaller
 cp "$CURRENT_PATCH_PATH/uninstall.sh" ./app/uninstall.sh
 chmod 755 ./app/uninstall.sh

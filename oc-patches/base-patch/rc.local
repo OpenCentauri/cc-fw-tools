@@ -49,3 +49,10 @@ if [ -e %OC_APP_GADGET% ]; then
   # Gadget Mode pi present! Continuing boot without /app/app...
   exit 0
 fi
+if [ -e /app/noapp.kill ]; then
+  echo "Kill file noapp.kill present! Continuing boot without /app/app..."
+  rm -f /app/noapp.kill 2>/dev/null
+  echo "/app/noapp.kill deleted."
+  exit 0
+fi
+
