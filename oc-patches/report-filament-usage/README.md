@@ -66,3 +66,22 @@ Two constant strings (hex key representations) are stored near the code cave:
    - **Contents**: second key string (hex) used for the **current 250 ms delta**.
 
 These strings are referenced only by the new and are placed before it to preserve patchable 0-byte addresses.
+
+### 4. Commented assembly instructions
+
+```.arm
+push    {r0, r1, r2, r3}             @ Save registers r0-3 to stack in case they are needed on return (preserve state)
+movw    r0, #0x54d4                  @ Load lower 16 bits of g_Printer address
+movt    r0, #0x3e                    @ Load upper 16 bits: r0 = 0x3e54d4 (g_Printer global)
+ldr     r0, [r0]                     @ Deref g_Printer to get obj address (runtime: 0xA7A00470)
+ldr     r0, [r0, #0xf8]              @ Load motion planner object from obj at offset 0xf8
+add     r0, r0, #0x1c0               @ Add offset 0x1c0 to reach E-axis position field
+ldrd    r2, r3, [r0]                 @ Load 64-bit double (E position in mm) into r2:r3 regs
+vmov    d0, r2, r3                   @ Move the 64-bit value from int regs to FPU double reg d0
+movw    r3, #0x4c80                  @ Load lower 16 bits of output buffer address
+movt    r3, #0x3e                    @ Load upper 16 bits: r3 = 0x3e4c80 (JSON output buffer)
+vstr    d0, [r3]                     @ Store E position double to output buffer (gets included in printer status JSON)
+pop     {r0, r1, r2, r3}             @ Restore registers r0-3 from stack (return to state)
+movw    r12, #0xea64                 @ Load lower 16 bits of return address
+movt    r12, #0x2d                   @ Load upper 16 bits: r12 = 0x2dea64 (original code continuation)
+bx      r12                          @ Branch/return to original execution address```
