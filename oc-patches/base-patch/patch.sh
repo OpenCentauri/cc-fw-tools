@@ -105,6 +105,8 @@ cat "$CURRENT_PATCH_PATH/wifi-network-config-tool" > ./app/wifi-network-config-t
 chmod 755 ./app/wifi-network-config-tool
 
 echo Installing automatic NTP date/time sync to run on boot
+cat "$CURRENT_PATCH_PATH/oc-startntp.sh" > ./app/oc-startntp.sh
+chmod 755 ./app/oc-startntp.sh
 cat "$CURRENT_PATCH_PATH/ntpdate" > ./app/ntpdate
 chmod 755 ./app/ntpdate
 

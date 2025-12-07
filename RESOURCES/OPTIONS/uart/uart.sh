@@ -6,10 +6,12 @@ if [ $# != 2 ]; then
   exit 1
 fi
 
-check_tools "unzip"
-
 project_root="$1"
 uart_package="$2"
+
+source "$project_root/TOOLS/helpers/utils.sh" "$project_root"
+
+check_tools "unzip"
 
 # check the project root folder
 if [ ! -d "$project_root" ]; then
