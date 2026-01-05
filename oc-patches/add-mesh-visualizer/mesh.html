@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Centauri Carbon Bed Mesh Visualizer</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #ffffff;
+            font-size: 2em;
+        }
+
+        .upload-section {
+            background: #2a2a2a;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 2px dashed #4a4a4a;
+            transition: border-color 0.3s;
+        }
+
+        .upload-section:hover {
+            border-color: #6a6a6a;
+        }
+
+        .instructions {
+            text-align: left;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #3a3a3a;
+            border-radius: 8px;
+        }
+
+        .instructions h3 {
+            color: #ffffff;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+            line-height: 1.8;
+        }
+
+        .instructions li {
+            margin-bottom: 8px;
+        }
+
+        .gcode-link {
+            color: #4da6ff;
+            text-decoration: none;
+            font-weight: bold;
+            padding: 2px 6px;
+            background: rgba(77, 166, 255, 0.1);
+            border-radius: 3px;
+            transition: background 0.3s;
+        }
+
+        .gcode-link:hover {
+            background: rgba(77, 166, 255, 0.2);
+            text-decoration: underline;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: flex;
+            width: 100%;
+            justify-content: center;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-input-label {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #0066cc;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        .file-input-label:hover {
+            background: #0052a3;
+        }
+
+        .file-name {
+            margin-top: 15px;
+            color: #aaa;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .info-section {
+            background: #2a2a2a;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .info-section.active {
+            display: block;
+        }
+
+        .profile-selector {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .profile-btn {
+            padding: 10px 20px;
+            background: #3a3a3a;
+            border: 2px solid #4a4a4a;
+            border-radius: 6px;
+            color: #e0e0e0;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .profile-btn:hover {
+            border-color: #6a6a6a;
+        }
+
+        .profile-btn.active {
+            background: #0066cc;
+            border-color: #0066cc;
+            color: white;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: #3a3a3a;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #0066cc;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #fff;
+            word-break: break-word;
+        }
+
+        #plotParent {
+            background: #2a2a2a;
+            border-radius: 12px;
+            padding: 20px;
+            display: none;
+        }
+
+        #plotParent:has(#plotContainer.active) {
+            display: block;
+        }
+
+        #plotContainer {
+            min-height: 600px;
+            visibility: hidden;
+            height: 0;
+            overflow: hidden;
+        }
+
+        #plotContainer.active {
+            visibility: visible;
+            height: auto;
+        }
+
+        .error {
+            background: #4a2a2a;
+            border: 1px solid #8a3a3a;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: #ffaaaa;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+
+            .upload-section {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Centauri Carbon Bed Mesh Visualizer</h1>
+
+        <div class="upload-section">
+            <div class="instructions">
+                <h3>Instructions:</h3>
+                <ol>
+                    <li>Plug a USB drive into your PC</li>
+                    <li>Copy <a href="#" class="gcode-link" id="gcodeDownload">M8803.gcode</a> to your USB drive</li>
+                    <li>Eject the USB drive from your PC</li>
+                    <li>Plug the same USB drive into your Centauri Carbon</li>
+                    <li>Go to the files menu and print M8803.gcode</li>
+                    <li>Unplug the USB drive after clicking finish</li>
+                    <li>Plug the same USB drive back into your computer</li>
+                    <li>Upload printer.cfg from the USB drive to the website</li>
+                </ol>
+            </div>
+            <div class="file-input-wrapper">
+                <input type="file" id="fileInput" accept=".cfg,.txt">
+                <label for="fileInput" class="file-input-label">Choose printer.cfg file</label>
+            </div>
+            <div class="file-name" id="fileName"></div>
+        </div>
+
+        <div id="errorContainer"></div>
+
+        <div class="info-section" id="infoSection">
+            <div class="profile-selector" id="profileSelector"></div>
+            <div class="stats" id="statsContainer"></div>
+        </div>
+        <div id="plotParent">
+            <div id="plotContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        const profiles = {
+            'standard': ['besh_profile_standard_default', 'Side A'],
+            'enhancement': ['besh_profile_enhancement_default', 'Side B'],
+            /*'standard_secondary': ['besh_profile_standard_1', 'Side A (Secondary)'],
+            'enhancement_secondary': ['besh_profile_enhancement_1', 'Side B (Secondary)']*/
+        };
+
+        let parsedProfiles = {};
+        let currentProfile = null;
+
+        // Create downloadable M8803.gcode file
+        document.getElementById('gcodeDownload').addEventListener('click', function (e) {
+            e.preventDefault();
+            const blob = new Blob(['M8803'], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'M8803.gcode';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        function showError(message) {
+            const errorContainer = document.getElementById('errorContainer');
+            errorContainer.innerHTML = `<div class="error">${message}</div>`;
+        }
+
+        function clearError() {
+            document.getElementById('errorContainer').innerHTML = '';
+        }
+
+        function parseProfile(configContent, sectionName) {
+            // Try to find the section with a lookahead to next section or end of file
+            let sectionPattern = new RegExp(`\\[${sectionName}\\]([\\s\\S]*?)(?=\\n\\[|$)`, 'i');
+            let sectionMatch = configContent.match(sectionPattern);
+
+            if (!sectionMatch) {
+                return null;
+            }
+
+            const sectionStr = sectionMatch[1];
+
+            // Extract points
+            const meshPointsMatch = sectionStr.match(/points\s*:\s*([-\d.,\s]+)/i);
+            if (!meshPointsMatch) {
+                return null;
+            }
+
+            const meshPointsStr = meshPointsMatch[1];
+
+            // Helper to extract config values
+            function extractMeshConfig(key, defaultValue) {
+                const match = sectionStr.match(new RegExp(`${key}\\s*:\\s*([\\d.]+)`, 'i'));
+                return match ? parseFloat(match[1]) : defaultValue;
+            }
+
+            const meshConfigs = {
+                min_x: extractMeshConfig('min_x', 20),
+                max_x: extractMeshConfig('max_x', 246),
+                min_y: extractMeshConfig('min_y', 20),
+                max_y: extractMeshConfig('max_y', 246),
+                x_count: parseInt(extractMeshConfig('x_count', 11)),
+                y_count: parseInt(extractMeshConfig('y_count', 11))
+            };
+
+            // Parse points
+            const meshPoints = meshPointsStr.split(',')
+                .map(p => p.trim())
+                .filter(p => p.length > 0)
+                .map(p => parseFloat(p));
+
+            const expectedPoints = meshConfigs.x_count * meshConfigs.y_count;
+            if (meshPoints.length !== expectedPoints) {
+                console.warn(`Expected ${expectedPoints} values in ${sectionName}, found ${meshPoints.length}`);
+                return null;
+            }
+
+            // Reshape into 2D array (x_count rows, y_count columns)
+            const points = [];
+            for (let i = 0; i < meshConfigs.y_count; i++) {
+                points.push(meshPoints.slice(i * meshConfigs.x_count, (i + 1) * meshConfigs.x_count));
+            }
+
+            return {
+                points: points,
+                configs: meshConfigs
+            };
+        }
+
+        function createPlot(profileKey, mesh) {
+            const points = mesh.points;
+            const configs = mesh.configs;
+
+            // Create coordinate arrays
+            const xCoords = [];
+            const yCoords = [];
+            for (let i = 0; i < configs.x_count; i++) {
+                xCoords.push(configs.min_x + (configs.max_x - configs.min_x) * i / (configs.x_count - 1));
+            }
+            for (let i = 0; i < configs.y_count; i++) {
+                yCoords.push(configs.min_y + (configs.max_y - configs.min_y) * i / (configs.y_count - 1));
+            }
+
+            // Calculate statistics
+            const flatPoints = points.flat();
+            const minZ = Math.min(...flatPoints);
+            const maxZ = Math.max(...flatPoints);
+            const flatnessDev = maxZ - minZ;
+
+            // Update stats display
+            document.getElementById('statsContainer').innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-label">Min Height</div>
+                    <div class="stat-value">${minZ.toFixed(5)} mm</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Max Height</div>
+                    <div class="stat-value">${maxZ.toFixed(5)} mm</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Flatness Deviation</div>
+                    <div class="stat-value">${flatnessDev.toFixed(5)} mm</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Grid Size</div>
+                    <div class="stat-value">${configs.x_count} × ${configs.y_count}</div>
+                </div>
+            `;
+
+            // Create z=0 reference plane
+            const zeroPlane = Array(2).fill(null).map(() => Array(2).fill(0));
+            const planeX = [configs.min_x, configs.max_x];
+            const planeY = [configs.min_y, configs.max_y];
+
+            // Create 3D surface plot
+            const data = [
+                {
+                    type: 'surface',
+                    x: xCoords,
+                    y: yCoords,
+                    z: points,
+                    colorscale: 'RdBu',
+                    reversescale: false,
+                    colorbar: {
+                        title: 'Height (mm)',
+                        titleside: 'right'
+                    },
+                    name: 'Bed Mesh'
+                },
+                {
+                    type: 'surface',
+                    x: planeX,
+                    y: planeY,
+                    z: zeroPlane,
+                    colorscale: [[0, 'rgba(100, 255, 100, 0.3)'], [1, 'rgba(100, 255, 100, 0.3)']],
+                    showscale: false,
+                    name: 'Z=0 Reference',
+                    hovertemplate: 'X: %{x:.1f} mm<br>Y: %{y:.1f} mm<br>Z: 0.000 mm<extra></extra>'
+                }
+            ];
+
+            const layout = {
+                title: {
+                    text: `Bed Mesh: ${profiles[profileKey][1]}<br><sub>Flatness deviation: ${flatnessDev.toFixed(3)} mm</sub>`,
+                    font: { color: '#e0e0e0' }
+                },
+                scene: {
+                    xaxis: { title: 'X (mm)', color: '#e0e0e0', gridcolor: '#4a4a4a' },
+                    yaxis: { title: 'Y (mm)', color: '#e0e0e0', gridcolor: '#4a4a4a' },
+                    zaxis: { title: 'Height (mm)', color: '#e0e0e0', gridcolor: '#4a4a4a' },
+                    bgcolor: '#2a2a2a',
+                    camera: {
+                        eye: { x: 1.5, y: 1.5, z: 1.3 }
+                    }
+                },
+                paper_bgcolor: '#2a2a2a',
+                plot_bgcolor: '#2a2a2a',
+                font: { color: '#e0e0e0' },
+                margin: { l: 0, r: 0, t: 80, b: 0 }
+            };
+
+            const config = {
+                responsive: true,
+                displayModeBar: true,
+                displaylogo: false
+            };
+
+            // Check if plot already exists and preserve camera position
+            const plotContainer = document.getElementById('plotContainer');
+            if (plotContainer.data && plotContainer.layout && plotContainer.layout.scene) {
+                // Preserve the current camera position
+                layout.scene.camera = plotContainer.layout.scene.camera;
+            }
+
+            Plotly.react('plotContainer', data, layout, config);
+
+            // Force resize to ensure proper width
+            setTimeout(() => {
+                Plotly.Plots.resize('plotContainer');
+            }, 100);
+        }
+
+        function displayProfile(profileKey) {
+            currentProfile = profileKey;
+            const mesh = parsedProfiles[profileKey];
+
+            // Update active button
+            document.querySelectorAll('.profile-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.profile === profileKey);
+            });
+
+            createPlot(profileKey, mesh);
+            document.getElementById('plotContainer').classList.add('active');
+        }
+
+        function processFile(content) {
+            clearError();
+            parsedProfiles = {};
+
+            // Parse all available profiles
+            for (const [key, [sectionName, displayName]] of Object.entries(profiles)) {
+                const mesh = parseProfile(content, sectionName);
+                if (mesh) {
+                    parsedProfiles[key] = mesh;
+                }
+            }
+
+            if (Object.keys(parsedProfiles).length === 0) {
+                showError('No valid bed mesh profiles found in the config file. Looking for: ' +
+                    Object.values(profiles).map(p => p[0]).join(', '));
+                document.getElementById('infoSection').classList.remove('active');
+                document.getElementById('plotContainer').classList.remove('active');
+                return;
+            }
+
+            // Create profile selector buttons
+            const profileSelector = document.getElementById('profileSelector');
+            profileSelector.innerHTML = '';
+
+            for (const [key, mesh] of Object.entries(parsedProfiles)) {
+                const btn = document.createElement('button');
+                btn.className = 'profile-btn';
+                btn.textContent = profiles[key][1];
+                btn.dataset.profile = key;
+                btn.onclick = () => displayProfile(key);
+                profileSelector.appendChild(btn);
+            }
+
+            // Show the first profile by default
+            const firstProfile = Object.keys(parsedProfiles)[0];
+            document.getElementById('infoSection').classList.add('active');
+            displayProfile(firstProfile);
+        }
+
+        // File upload handler
+        document.getElementById('fileInput').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            document.getElementById('fileName').textContent = `Selected: ${file.name}`;
+
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                processFile(event.target.result);
+            };
+            reader.onerror = function () {
+                showError('Error reading file. Please try again.');
+            };
+            reader.readAsText(file);
+        });
+
+        // Drag and drop support
+        const uploadSection = document.querySelector('.upload-section');
+
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.style.borderColor = '#0066cc';
+        });
+
+        uploadSection.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            uploadSection.style.borderColor = '#4a4a4a';
+        });
+
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.style.borderColor = '#4a4a4a';
+
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                document.getElementById('fileInput').files = e.dataTransfer.files;
+                document.getElementById('fileName').textContent = `Selected: ${file.name}`;
+
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    processFile(event.target.result);
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        function loadPrinterConfig() {
+            fetch('/printer.cfg')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    document.getElementById('fileName').textContent = 'Loaded: /printer.cfg';
+                    processFile(data);
+                })
+                .catch(error => {
+                    showError('Error loading file: ' + error.message);
+                });
+        }
+
+        loadPrinterConfig();
+    </script>
+</body>
+
+</html>
