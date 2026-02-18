@@ -1648,6 +1648,9 @@
 			pwm-number = <0x08>;
 			pwm-base = <0x00>;
 			sunxi-pwms = <0x3c 0x3d 0x3e 0x3f 0x40 0x41 0x42 0x43>;
+			/* BEGIN: Kernel DTS patch1 Disable pwm device to prevent panic on custom kernel */
+			/*status = "disabled";*//*Fixed by Qualix5X! No need to disable now...*/
+			/* END: Kernel DTS patch1 Disable pwm device to prevent panic on custom kernel */
 			phandle = <0x7d>;
 		};
 

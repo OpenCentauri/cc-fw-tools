@@ -1,0 +1,5 @@
+id = "kernel_zswap"
+name = "Deploy custom OpenCentauri kernel and zswap/swap"
+compatible_versions = ["1.1.40"]
+after = ["base"]
+before = ["finalise"]

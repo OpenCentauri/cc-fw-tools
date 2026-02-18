@@ -1,0 +1,6 @@
+
+if [ -e /app/oc-zram-swap.sh ]; then
+  # Run the swap config script
+  /app/oc-zram-swap.sh %OC_ZRAM_SWAP% %OC_EMMC_SWAP%
+fi
+

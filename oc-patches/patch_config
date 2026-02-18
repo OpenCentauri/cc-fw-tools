@@ -17,6 +17,17 @@ OC_NTP_SERVER=pool.ntp.org
 # Designed to allow for a Raspberry Pi in gadget mode to plug in!
 OC_APP_GADGET=/dev/ttyACM0
 
+# If set, update kernel with custom build, enable and set size of ZRAM swap and eMMC swapfile
+KERNEL_ZSWAP=true
+# Disable ZRAM swap
+#OC_ZRAM_SWAP=0
+# Default to ~half of total RAM for ZRAM swap
+OC_ZRAM_SWAP=64
+# Disable eMMC swap
+OC_EMMC_SWAP=0
+# Default to double the total RAM for eMMC swapfile
+#OC_EMMC_SWAP=220
+
 BLOCK_CONNECTIVITY_CHECK=true
 #BLOCK_UPDATE_CHECK=true
 API_DURING_PRINTING=true
@@ -33,4 +44,5 @@ UPLOAD_DURING_PRINTING=true
 UBOOT=true
 UART=true
 FIX_UTF8_CORRUPTION=true
-KLIPPER_SETUP=true
+
+KLIPPER_SETUP=false
