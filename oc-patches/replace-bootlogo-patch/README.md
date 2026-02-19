@@ -49,3 +49,19 @@ Made by [Elegoo](https://github.com/elegooofficial)
 ![official](./bootlogos/official.bmp)
 
 Apply with command `/bootlogos/swap.sh official`
+
+### OC_BW
+
+Made by [Marcos TMello](https://github.com/mtmello2003)
+
+![OC_BW](./bootlogos/OC_BW.bmp)
+
+Apply with command `/bootlogos/swap.sh OC_BW`
+
+### OC_Color
+
+Made by [Marcos TMello](https://github.com/mtmello2003)
+
+![OC_Color](./bootlogos/OC_Color.bmp)
+
+Apply with command `/bootlogos/swap.sh OC_Color`
