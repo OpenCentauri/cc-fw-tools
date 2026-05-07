@@ -1,0 +1,64 @@
+#!/bin/sh
+# /opt/etc/init.d/S99auto-dismiss — entware service for auto-dismiss-daemon.
+# Same convention as the bundled S40sshd.
+
+prefix="/opt"
+PATH=${prefix}/bin:${prefix}/sbin:/sbin:/bin:/usr/sbin:/usr/bin
+
+DAEMON=${prefix}/sbin/auto-dismiss-daemon
+PIDFILE=${prefix}/var/run/auto-dismiss.pid
+LOGFILE=${prefix}/var/log/auto-dismiss.log
+
+start() {
+    if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+        echo "auto-dismiss already running (pid $(cat "$PIDFILE"))"
+        return 0
+    fi
+    mkdir -p "$(dirname "$PIDFILE")" "$(dirname "$LOGFILE")"
+    # Truncate log on (re)start so each run is self-contained
+    : >"$LOGFILE"
+    echo "starting auto-dismiss..."
+    # No nohup/setsid in busybox — detach via subshell + daemon's own
+    # `trap '' HUP`. Closes stdin/out/err to log file; subshell exits
+    # immediately so the daemon gets reparented to init.
+    ( "$DAEMON" >>"$LOGFILE" 2>&1 </dev/null & echo $! >"$PIDFILE" )
+}
+
+stop() {
+    # PIDFILE for the documented case
+    if [ -f "$PIDFILE" ]; then
+        kill "$(cat "$PIDFILE")" 2>/dev/null || true
+        rm -f "$PIDFILE"
+    fi
+    # Belt-and-braces: pidof catches stragglers from a crashed start
+    # (PID file out of sync, multiple daemons, etc.).  No pkill in
+    # busybox here; pidof + kill works everywhere.
+    PIDS=$(pidof auto-dismiss-daemon 2>/dev/null || true)
+    if [ -n "$PIDS" ]; then
+        kill $PIDS 2>/dev/null || true
+        sleep 1
+        # Force-kill anything that didn't honor SIGTERM
+        STRAG=$(pidof auto-dismiss-daemon 2>/dev/null || true)
+        [ -n "$STRAG" ] && kill -9 $STRAG 2>/dev/null
+    fi
+    echo "auto-dismiss stopped"
+}
+
+restart() { stop; sleep 1; start; }
+
+status() {
+    if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+        echo "auto-dismiss running (pid $(cat "$PIDFILE"))"
+        return 0
+    fi
+    echo "auto-dismiss not running"
+    return 3
+}
+
+case "$1" in
+    start)   start ;;
+    stop)    stop ;;
+    restart) restart ;;
+    status)  status ;;
+    *)       echo "Usage: $0 {start|stop|restart|status}"; exit 1 ;;
+esac
