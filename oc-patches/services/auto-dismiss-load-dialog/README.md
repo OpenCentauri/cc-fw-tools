@@ -24,14 +24,21 @@ Detection signal — three log-line states from `/board-resource/log1`:
 ```
 [app][...]:feed state change : 0 -> 1     ← load OR unload starts; reset
 [gcode][...]:single_command<M729>         ← cycle is a load (load-only gcode)
-[app][...]:feed state change : 1 -> 0     ← cycle ends; if is_load, tap
+[gcode][...]:single_command<M82>          ← gcode complete; dialog appears.
+                                            If is_load, tap.
 ```
 
 `M729` was identified as the cleanest load-only discriminator by
 diffing the load and unload gcode sequences. Unloads run
 `G1 E-60 F240` + `SET_MIN_EXTRUDE_TEMP S0/RESET`; loads run
-`G1 E120 F240` + `M729`. Picking `M729` means we don't have to
-interpret signed extrude values or filament-specific heater targets.
+`G1 E120 F240` + `M729`. `M82` (set absolute extrude) fires at the
+end of *both* cycles, but only loads precede it with `M729`, so the
+is_load gate keeps the unload cycle untapped.
+
+Trigger choice came from a live capture: `feed state change : 1 -> 0`
+fires *after* the dialog is dismissed (it's downstream of the tap),
+so it's useless as a trigger — would create chicken-and-egg. `M82`
+fires at the moment the dialog appears.
 
 Tap synthesis matches the gt9xxnew_ts driver's recorded sequence
 (captured from a real user tap on V0.3.0-o):

@@ -25,19 +25,23 @@ start() {
 }
 
 stop() {
-    # PIDFILE for the documented case
+    # The PIDFILE-only path was naive: if the file got out of sync
+    # with reality (stale PID after a failed start, kill-not-taking
+    # because the daemon was in a tail-F'ing disk wait, an out-of-band
+    # spawn from a previous boot's S-script, etc.) leftover daemons
+    # would survive `restart` and pile up.
+    #
+    # Belt-and-braces: name-based lookup with `pidof` plus a SIGKILL
+    # fallback for anything that didn't honour SIGTERM within a second.
+    # No `pkill` in this busybox, but pidof + kill works everywhere.
     if [ -f "$PIDFILE" ]; then
         kill "$(cat "$PIDFILE")" 2>/dev/null || true
         rm -f "$PIDFILE"
     fi
-    # Belt-and-braces: pidof catches stragglers from a crashed start
-    # (PID file out of sync, multiple daemons, etc.).  No pkill in
-    # busybox here; pidof + kill works everywhere.
     PIDS=$(pidof auto-dismiss-daemon 2>/dev/null || true)
     if [ -n "$PIDS" ]; then
         kill $PIDS 2>/dev/null || true
         sleep 1
-        # Force-kill anything that didn't honor SIGTERM
         STRAG=$(pidof auto-dismiss-daemon 2>/dev/null || true)
         [ -n "$STRAG" ] && kill -9 $STRAG 2>/dev/null
     fi

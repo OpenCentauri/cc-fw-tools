@@ -7,11 +7,18 @@
 # `app` daemon writes to /board-resource/log1 with Klipper-derived module
 # names).
 #
-# Detection logic:
+# Detection logic (V0.3.0-o, verified by live capture):
 #   "feed state change : 0 -> 1"   → cycle started; reset is_load
 #   "single_command<M729>"         → cycle is a load (M729 fires only in
 #                                    the load gcode, not unload)
-#   "feed state change : 1 -> 0"   → cycle ended; if is_load, tap dismiss
+#   "single_command<M82>"          → load gcode finished; dialog appears
+#                                    NOW. If is_load, settle then tap.
+#
+# We deliberately do NOT trigger on "feed state change : 1 -> 0":
+# that line fires AFTER a tap dismisses the dialog (it's downstream of
+# the action we're trying to take), making it useless as a trigger.
+# Both load and unload cycles emit M82, but only loads precede it
+# with M729, so the is_load gate keeps unload cycles untapped.
 #
 # Tap coordinates default to (289, 182), captured on firmware V0.3.0-o.
 
@@ -45,18 +52,24 @@ is_load=0
 while read -r line; do
     case "$line" in
         *"feed state change : 0 -> 1"*)
+            # New cycle starting (load or unload). Reset the flag.
             is_load=0
             ;;
         *"single_command<M729>"*)
+            # Load-specific gcode. Only loads emit M729.
             is_load=1
             ;;
-        *"feed state change : 1 -> 0"*)
+        *"single_command<M82>"*)
+            # M82 fires immediately after the extrude completes — the
+            # exact moment the load-complete dialog appears. Both load
+            # and unload cycles emit M82, so the is_load gate is what
+            # makes this load-only.
             if [ "$is_load" = "1" ]; then
-                log "load complete detected; tapping ($TAP_X,$TAP_Y) after ${SETTLE_S}s"
+                log "load M82 (gcode complete); tapping ($TAP_X,$TAP_Y) after ${SETTLE_S}s"
                 sleep "$SETTLE_S"
                 "$SYNTH_TAP" "$TAP_X" "$TAP_Y" || log "WARN: synth-tap exited $?"
+                is_load=0
             fi
-            is_load=0
             ;;
     esac
 done < <(tail -n 0 -F "$LOG" 2>/dev/null)
