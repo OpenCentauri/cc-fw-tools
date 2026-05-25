@@ -4,7 +4,7 @@
 ### You can edit variables in here to tweak settings in the FW!
 ###
 
-OC_BOOTSTRAP_MD5=a0a2eb05011884f1ab281ed4980ee3a7
+KIP_BOOTSTRAP_MD5=035981c8084f4a3827f114895913a270
 
 # How long to wait until starting /app/app on boot
 # If non-zero, you can SSH in after boot and run 'noapp' to prevent start
