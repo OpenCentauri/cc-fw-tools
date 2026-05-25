@@ -35,16 +35,17 @@ jobs:
           ./build.sh $FW_VER
           cp ./update/update.swu update.swu
 
-      - name: build klipper-pi firmware
-        run: |
-          rm ./oc-patches/patch_config
-          cp ./firmware-editions/klipper-pi ./oc-patches/patch_config
-          ./build.sh $FW_VER
-          cp ./update/update.swu klipper-pi.swu
+      # TODO: Re-enable klipper-pi build once KIP_BOOTSTRAP_URL is configured
+      # - name: build klipper-pi firmware
+      #   run: |
+      #     rm ./oc-patches/patch_config
+      #     cp ./firmware-editions/klipper-pi ./oc-patches/patch_config
+      #     ./build.sh $FW_VER
+      #     cp ./update/update.swu klipper-pi.swu
       
       - uses: actions/upload-artifact@v4
         with:
           name: firmware
           path: |
             update.swu
-            klipper-pi.swu
+            # klipper-pi.swu
