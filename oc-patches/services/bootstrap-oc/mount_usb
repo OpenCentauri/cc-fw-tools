@@ -1,4 +1,4 @@
-#!/opt/bin/bash
+#!/usr/bin/env bash
 
 DISK="$(ls /dev/sd[a-z] | xargs -i fdisk -l {} | grep -i fat | awk '{print $1}' | head -1)"
 [[ ! -z "$DISK" ]] && mount -t vfat,exfat -o iocharset=utf8 $DISK /mnt/exUDISK && \

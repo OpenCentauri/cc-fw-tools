@@ -1,4 +1,4 @@
-#!/opt/bin/bash
+#!/usr/bin/env bash
 
 wlan_conf="/board-resource/wlan_entery"
 wlan_conf_str="/tmp/wlan_entery_str"
@@ -10,11 +10,13 @@ echo "Cleanup old wlan stuff..."
 kill $(cat /tmp/wlan0_udhcpc.pid) &>/dev/null
 kill $(pgrep wpa_supplicant) &>/dev/null
 sleep 1
-rmmod 8821cu
-sleep 1
 
 echo "Bootstrapping wlan0..."
+modprobe aic_load_fw
+modprobe aic8800_fdrv
 modprobe 8821cu
+modprobe 8723du
+sleep 2
 wpa_supplicant -D nl80211,wext -C /var/run/wpa_supplicant -B -i wlan0
 
 num_wlan=$(cat "$wlan_conf_str" | wc -l)
@@ -45,4 +47,8 @@ wpa_cli reconnect
 sleep 2
 
 # Start DHCP service
-udhcpc -i wlan0 -b -p /tmp/wlan0_udhcpc.pid -s /usr/share/udhcpc/default.script -x hostname:Centauri-Carbon
+#udhcpc -i wlan0 -b -p /tmp/wlan0_udhcpc.pid -s /usr/share/udhcpc/default.script -x hostname:Centauri-Carbon
+udhcpc -i wlan0 -f -p /tmp/wlan0_udhcpc.pid \
+  -s /usr/share/udhcpc/default.script \
+  -x hostname:Centauri-Carbon \
+  -A 5 -t 10 -T 3 &
