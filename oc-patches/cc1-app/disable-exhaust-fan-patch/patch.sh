@@ -12,6 +12,15 @@ source "$project_root/TOOLS/helpers/utils.sh" "$project_root"
 check_tools "bspatch"
 
 cd "$SQUASHFS_ROOT/app"
-bspatch ./app ./app-patch "$CURRENT_PATCH_PATH/exhaust-fan-patch.bsdiff"
+if [ "$FW_VER" = "1.1.40" ]; then
+  bsdiff_file="exhaust-fan-patch-1.1.40.bsdiff"
+elif [ "$FW_VER" = "1.4.46" ]; then
+  bsdiff_file="exhaust-fan-patch-1.4.46.bsdiff"
+else
+  echo "Unsupported firmware version for disable exhaust fan patch: $FW_VER"
+  exit 1
+fi
+
+bspatch ./app ./app-patch "$CURRENT_PATCH_PATH/$bsdiff_file"
 rm ./app
 mv ./app-patch ./app

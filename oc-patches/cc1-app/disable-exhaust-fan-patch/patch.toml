@@ -1,4 +1,4 @@
 id = "disable_exhaust_fan"
 name = "Fix exhaust fan automatically turning on during a print"
 after = ["base"]
-compatible_versions = ["1.1.40"]
+compatible_versions = ["1.1.40", "1.4.46"]
