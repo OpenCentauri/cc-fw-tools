@@ -9,7 +9,7 @@ on:
       - main
 
 env:
-  FW_VER: 1.1.40
+  FW_VER: 1.4.46
 
 jobs:
   build:
