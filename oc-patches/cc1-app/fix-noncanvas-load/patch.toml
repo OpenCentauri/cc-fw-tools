@@ -1,0 +1,4 @@
+id = "fix_noncanvas_load"
+name = "Fix non-Canvas load/unload sensor-null app crash"
+after = ["base"]
+compatible_versions = ["1.4.46"]
