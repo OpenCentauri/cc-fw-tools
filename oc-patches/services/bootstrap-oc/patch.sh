@@ -65,6 +65,12 @@ chmod 755 ./usr/sbin/flash
 cat "$CURRENT_PATCH_PATH/switch-to-cosmos" > ./usr/sbin/switch-to-cosmos
 chmod 755 ./usr/sbin/switch-to-cosmos
 
+# Install flash-artifact and update-patched utilities
+cat "$CURRENT_PATCH_PATH/flash-artifact" > ./usr/sbin/flash-artifact
+chmod 755 ./usr/sbin/flash-artifact
+cat "$CURRENT_PATCH_PATH/update-patched" > ./usr/sbin/update-patched
+chmod 755 ./usr/sbin/update-patched
+
 echo Installing automatic NTP date/time sync to run on boot
 cat "$CURRENT_PATCH_PATH/ntpdate" > ./usr/sbin/ntpdate
 chmod 755 ./usr/sbin/ntpdate
