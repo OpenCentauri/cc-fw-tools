@@ -42,6 +42,11 @@ def main():
     print(f"Downloading artifact from {fw_url} ...")
     subprocess.run(["curl", "-L", "-f", "-o", zip_name, fw_url], check=True)
 
+    # Ensure unzip is available
+    if subprocess.run(["which", "unzip"], capture_output=True).returncode != 0:
+        print("unzip not found; installing via opkg...")
+        subprocess.run(["opkg", "install", "unzip"], check=True)
+
     print(f"Unpacking {zip_name} ...")
     subprocess.run(["unzip", "-o", zip_name], check=True)
 
