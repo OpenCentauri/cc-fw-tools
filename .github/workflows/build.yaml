@@ -71,6 +71,7 @@ jobs:
       - name: Update 0.0.0 beta release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
           # Create the 0.0.0 release if it doesn't exist; ignore error if it does
           gh release create 0.0.0 \
