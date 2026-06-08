@@ -4,9 +4,9 @@
 ### You can edit variables in here to tweak settings in the FW!
 ###
 
-KIP_BOOTSTRAP_URL='https://github.com/pdscomp/Kipware/releases/download/2026-05-16/kipware-cc1-2026-05-16.tar.gz'
+KIP_BOOTSTRAP_URL='https://github.com/pdscomp/Kipware/releases/download/2026-06-08/kipware-cc1-2026-06-08.tar.gz'
 KIP_BOOTSTRAP_PATH='./app/kipware.tar.gz'
-KIP_BOOTSTRAP_SHA256=4379cee8a8e56a7c7a775c5492c0dba97209a5ee1f6e78d5407d92cff0f7da0b
+KIP_BOOTSTRAP_SHA256=19b47478352c05428a74095c14a406aa590af925e184c546fe995f6620c3269e
 
 # How long to wait until starting /app/app on boot
 # If non-zero, you can SSH in after boot and run 'noapp' to prevent start
