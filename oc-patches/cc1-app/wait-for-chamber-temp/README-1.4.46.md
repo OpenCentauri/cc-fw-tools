@@ -1,6 +1,6 @@
 # TEMPERATURE_WAIT Box Sensor Patch
 
-Adds chamber (`box`) temperature support to `TEMPERATURE_WAIT` for firmware 1.4.46 without changing stock heater behavior. The patch diverts only when the requested `SENSOR` is not found in the stock heater map and the requested sensor string is exactly `box`.
+Adds chamber (`box`) temperature support to `TEMPERATURE_WAIT` for firmware 1.4.46 without changing stock heater behavior. **Status: disabled for 1.4.46** pending a safe trampoline rebuild; the current 1.4.46 trampoline can corrupt the `TEMPERATURE_WAIT` stack frame and crash during startup.
 
 ## How to use
 ```

@@ -2,24 +2,32 @@
 set -euo pipefail
 
 # fix-singlecolor-filament-selection patch for CC1 app 1.4.46
-# This patch forces the SET_ALL_CHANNELS_SAME handler to always write 0,
-# preventing cmd_M749 from skipping the unload/load cycle on single-color prints.
+#
+# This is invoked by oc-patches/patch_planner.py with no positional
+# arguments. Patch the currently-unpacked app in-place, matching the
+# convention used by the other CC1 app bsdiff patches.
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PATCH_FILE="${SCRIPT_DIR}/fix-singlecolor-filament-selection-1.4.46.bsdiff"
-STOCK_APP="${1:?Usage: $0 <path/to/stock/app-1.4.46>}"
-OUTPUT_APP="${2:?Usage: $0 <stock> <output>}"
-
-if [[ ! -f "$PATCH_FILE" ]]; then
-    echo "ERROR: Patch file not found: $PATCH_FILE" >&2
-    echo "Generate it first with generate_patch.py" >&2
-    exit 1
+if [[ ${UID} -ne 0 ]]; then
+  echo "Error: Please run as root." >&2
+  exit 1
 fi
 
-if ! command -v bspatch &>/dev/null; then
-    echo "ERROR: bspatch not found in PATH" >&2
-    exit 1
-fi
+project_root="${REPOSITORY_ROOT:?REPOSITORY_ROOT is required}"
+# shellcheck source=/dev/null
+source "$project_root/TOOLS/helpers/utils.sh" "$project_root"
+check_tools "bspatch"
 
-bspatch "$STOCK_APP" "$OUTPUT_APP" "$PATCH_FILE"
-echo "Patched app written to: $OUTPUT_APP"
+case "${FW_VER:?FW_VER is required}" in
+  1.4.46)
+    bsdiff_file="fix-singlecolor-filament-selection-1.4.46.bsdiff"
+    ;;
+  *)
+    echo "Unsupported firmware version for fix-singlecolor-filament-selection patch: $FW_VER" >&2
+    exit 1
+    ;;
+esac
+
+cd "${SQUASHFS_ROOT:?SQUASHFS_ROOT is required}/app"
+bspatch ./app ./app-patch "${CURRENT_PATCH_PATH:?CURRENT_PATCH_PATH is required}/$bsdiff_file"
+rm ./app
+mv ./app-patch ./app
