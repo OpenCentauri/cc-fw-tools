@@ -8,6 +8,9 @@ This mirrors the app's own behavior: at runtime the app loads printer.cfg,
 overlays user_printer.cfg via Setuservalue(), and writes the merged result
 back to printer.cfg. We do the same thing at boot when the factory config
 has changed (firmware upgrade).
+
+Additionally, we ensure the home position patch is always baked into the
+resulting printer.cfg and user_printer.cfg.
 """
 
 import argparse
@@ -20,6 +23,16 @@ LIVE_CFG = "/board-resource/printer.cfg"
 USER_CFG = "/board-resource/user_printer.cfg"
 FACTORY_CFG = "/app/resources/configs/printer.cfg"
 BACKUP_DIR = "/board-resource"
+
+# Home position patch values (from home-position-front-right-patch)
+HOME_PATCH = {
+    "stepper_x": {
+        "position_endstop": "256.499",
+    },
+    "stepper_y": {
+        "homing_force_retract": "30",
+    },
+}
 
 
 def parse_config(path):
@@ -88,6 +101,36 @@ def needs_update(path):
     return False
 
 
+def apply_home_patch(text):
+    """Apply home position patch values to config text."""
+    for section, keys in HOME_PATCH.items():
+        sec_pattern = re.compile(
+            rf"^(\[{re.escape(section)}\].*?)(?=\n\[|\Z)",
+            re.MULTILINE | re.DOTALL,
+        )
+
+        def replace_keys(m):
+            sec_text = m.group(0)
+            for key, value in keys.items():
+                key_pattern = re.compile(
+                    rf"^(\s*{re.escape(key)}\s*:\s*)([^\n]*)",
+                    re.MULTILINE,
+                )
+                if key_pattern.search(sec_text):
+                    sec_text = key_pattern.sub(rf"\g<1>{value}", sec_text, count=1)
+                else:
+                    sec_text = sec_text.rstrip("\n") + f"\n{key} : {value}\n"
+            return sec_text
+
+        if sec_pattern.search(text):
+            text = sec_pattern.sub(replace_keys, text, count=1)
+        else:
+            text = text.rstrip("\n") + f"\n\n[{section}]\n"
+            for key, value in keys.items():
+                text += f"{key} : {value}\n"
+    return text
+
+
 def build_new_config(user_path, factory_path):
     """Overlay user_printer.cfg sections onto factory config, return new text.
 
@@ -95,47 +138,72 @@ def build_new_config(user_path, factory_path):
     - For each section in user_printer.cfg:
       - If section exists in factory: replace all matching keys with user values
       - If section doesn't exist in factory: append the whole section
+    - Then apply the home position patch to ensure it's always present
     """
-    user_sections = parse_config(user_path)
     with open(factory_path, "r", encoding="utf-8") as f:
         factory_text = f.read()
 
-    # Extract raw text blocks from user_printer.cfg for appending new sections
-    user_blocks = extract_sections_text(user_path)
+    # 1. Apply home position patch to factory base first
+    factory_text = apply_home_patch(factory_text)
 
-    for section, user_keys in user_sections.items():
-        # Check if section exists in factory config
-        sec_pattern = re.compile(
-            rf"^(\[{re.escape(section)}\].*?)(?=\n\[|\Z)",
-            re.MULTILINE | re.DOTALL,
-        )
-        sec_match = sec_pattern.search(factory_text)
+    # 2. If user_printer.cfg exists, overlay it
+    if os.path.exists(user_path):
+        user_sections = parse_config(user_path)
+        user_blocks = extract_sections_text(user_path)
 
-        if sec_match:
-            # Section exists in factory -- overlay user keys
-            def replace_keys_in_section(m):
-                sec_text = m.group(0)
-                for key, user_value in user_keys.items():
-                    key_pattern = re.compile(
-                        rf"^(\s*{re.escape(key)}\s*:\s*)([^\n]*)",
-                        re.MULTILINE,
-                    )
-                    if key_pattern.search(sec_text):
-                        sec_text = key_pattern.sub(
-                            rf"\g<1>{user_value}", sec_text, count=1
+        for section, user_keys in user_sections.items():
+            sec_pattern = re.compile(
+                rf"^(\[{re.escape(section)}\].*?)(?=\n\[|\Z)",
+                re.MULTILINE | re.DOTALL,
+            )
+            sec_match = sec_pattern.search(factory_text)
+
+            if sec_match:
+                def replace_keys_in_section(m):
+                    sec_text = m.group(0)
+                    for key, user_value in user_keys.items():
+                        key_pattern = re.compile(
+                            rf"^(\s*{re.escape(key)}\s*:\s*)([^\n]*)",
+                            re.MULTILINE,
                         )
-                    else:
-                        # Key missing in factory section -- append it
-                        sec_text = sec_text.rstrip("\n") + f"\n{key} : {user_value}\n"
-                return sec_text
+                        if key_pattern.search(sec_text):
+                            sec_text = key_pattern.sub(
+                                rf"\g<1>{user_value}", sec_text, count=1
+                            )
+                        else:
+                            sec_text = sec_text.rstrip("\n") + f"\n{key} : {user_value}\n"
+                    return sec_text
 
-            factory_text = sec_pattern.sub(replace_keys_in_section, factory_text, count=1)
-        else:
-            # Section doesn't exist in factory -- append whole section from user
-            factory_text = factory_text.rstrip("\n") + "\n\n"
-            factory_text += user_blocks.get(section, f"[{section}]\n")
+                factory_text = sec_pattern.sub(replace_keys_in_section, factory_text, count=1)
+            else:
+                factory_text = factory_text.rstrip("\n") + "\n\n"
+                factory_text += user_blocks.get(section, f"[{section}]\n")
+
+    # 3. Re-apply home position patch after user overlay
+    # (ensures user values can't accidentally override the patch)
+    factory_text = apply_home_patch(factory_text)
 
     return factory_text
+
+
+def update_user_printer_cfg(user_path):
+    """Update user_printer.cfg with home position patch values if it exists."""
+    if not os.path.exists(user_path):
+        return
+
+    user_sections = parse_config(user_path)
+    user_blocks = extract_sections_text(user_path)
+
+    # Read current user_printer.cfg content
+    with open(user_path, "r", encoding="utf-8") as f:
+        user_text = f.read()
+
+    # Apply home position patch
+    user_text = apply_home_patch(user_text)
+
+    with open(user_path, "w", encoding="utf-8") as f:
+        f.write(user_text)
+    print(f"Updated {user_path} with home position patch values.")
 
 
 def main():
@@ -172,18 +240,14 @@ def main():
     shutil.copy2(live_path, backup_path)
     print(f"Backed up live printer.cfg to {backup_path}")
 
-    # If user_printer.cfg exists, overlay it onto factory config.
-    # If it doesn't exist, just use the factory config as-is (fresh install
-    # or user never calibrated).
-    if os.path.exists(user_path):
-        new_text = build_new_config(user_path, factory_path)
-    else:
-        with open(factory_path, "r", encoding="utf-8") as f:
-            new_text = f.read()
-
+    # Build new printer.cfg with user_printer.cfg overlay + home patch
+    new_text = build_new_config(user_path, factory_path)
     with open(live_path, "w", encoding="utf-8") as f:
         f.write(new_text)
-    print("Updated live printer.cfg with migrated settings.")
+    print("Updated live printer.cfg with migrated settings and home position patch.")
+
+    # Also update user_printer.cfg with home position patch
+    update_user_printer_cfg(user_path)
 
 
 if __name__ == "__main__":
