@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
-"""Migrate calibration settings from live printer.cfg into factory printer.cfg.
+"""Migrate user_printer.cfg calibration overrides into a fresh factory printer.cfg.
 
-Runs on boot from rc.local. Only acts if the live config is missing the
+Runs on boot from rc.local. Only acts if the live printer.cfg is missing the
 OpenCentauri homing patch or still references /dev/ttyACM0.
+
+This mirrors the app's own behavior: at runtime the app loads printer.cfg,
+overlays user_printer.cfg via Setuservalue(), and writes the merged result
+back to printer.cfg. We do the same thing at boot when the factory config
+has changed (firmware upgrade).
 """
 
 import argparse
@@ -12,18 +17,9 @@ import shutil
 from datetime import datetime
 
 LIVE_CFG = "/board-resource/printer.cfg"
+USER_CFG = "/board-resource/user_printer.cfg"
 FACTORY_CFG = "/app/resources/configs/printer.cfg"
 BACKUP_DIR = "/board-resource"
-
-# Sections and the specific keys we want to migrate from live -> factory
-MIGRATE_SECTIONS = {
-    "input_shaper": ["shaper_freq_x", "shaper_type_y", "shaper_freq_y"],
-    "stepper_x": ["homing_retract_dist", "homing_force_retract", "position_endstop"],
-    "stepper_y": ["homing_retract_dist", "homing_force_retract", "position_endstop"],
-    "stepper_z": ["position_endstop"],
-    "extruder": ["pid_Kp", "pid_Ki", "pid_Kd"],
-    "heater_bed": ["pid_Kp", "pid_Ki", "pid_Kd"],
-}
 
 
 def parse_config(path):
@@ -42,7 +38,6 @@ def parse_config(path):
                 continue
             if current is None:
                 continue
-            # key : value  (colon-separated, optional whitespace)
             parts = stripped.split(":", 1)
             if len(parts) == 2:
                 key = parts[0].strip()
@@ -51,8 +46,8 @@ def parse_config(path):
     return sections
 
 
-def extract_sections_text(path, section_names):
-    """Extract raw text blocks for given section names (exact match)."""
+def extract_sections_text(path):
+    """Extract all section text blocks from a config file."""
     blocks = {}
     current = None
     buffer = []
@@ -61,13 +56,13 @@ def extract_sections_text(path, section_names):
             stripped = line.strip()
             m = re.match(r"^\[(.+?)\]", stripped)
             if m:
-                if current in section_names and buffer:
+                if current is not None and buffer:
                     blocks[current] = "".join(buffer)
                 current = m.group(1)
                 buffer = [line]
             elif current is not None:
                 buffer.append(line)
-        if current in section_names and buffer:
+        if current is not None and buffer:
             blocks[current] = "".join(buffer)
     return blocks
 
@@ -93,63 +88,52 @@ def needs_update(path):
     return False
 
 
-def build_new_config(live_path, factory_path):
-    """Layer live values over factory config, return new text."""
-    live_sections = parse_config(live_path)
+def build_new_config(user_path, factory_path):
+    """Overlay user_printer.cfg sections onto factory config, return new text.
+
+    This mirrors the app's Setuservalue() logic:
+    - For each section in user_printer.cfg:
+      - If section exists in factory: replace all matching keys with user values
+      - If section doesn't exist in factory: append the whole section
+    """
+    user_sections = parse_config(user_path)
     with open(factory_path, "r", encoding="utf-8") as f:
         factory_text = f.read()
 
-    # 1. Migrate specific keys in known sections
-    # Only overlay live values that differ from factory (preserves calibration
-    # changes while keeping factory defaults/OpenCentauri patches for
-    # uncalibrated keys).
-    # If the live config is missing the homing patch, it has stock values for
-    # these keys -- skip migration and use factory defaults.
-    factory_sections = parse_config(factory_path)
-    live_has_homing_patch = live_sections.get("stepper_x", {}).get("position_endstop") == "256.499"
-    for section, keys in MIGRATE_SECTIONS.items():
-        live_vals = live_sections.get(section, {})
-        factory_vals = factory_sections.get(section, {})
-        for key in keys:
-            if key in live_vals:
-                # If live config is missing homing patch, skip migration for
-                # these keys (live has stock values, not calibration values)
-                if not live_has_homing_patch:
-                    continue
-                # Only migrate if live value differs from factory
-                if live_vals[key] == factory_vals.get(key):
-                    continue
-                # Scoped replacement: only within the target section
-                sec_pattern = re.compile(
-                    rf"^(\[{re.escape(section)}\].*?)(?=\n\[|\Z)",
-                    re.MULTILINE | re.DOTALL,
-                )
-                def replace_key_in_section(m):
-                    sec_text = m.group(0)
+    # Extract raw text blocks from user_printer.cfg for appending new sections
+    user_blocks = extract_sections_text(user_path)
+
+    for section, user_keys in user_sections.items():
+        # Check if section exists in factory config
+        sec_pattern = re.compile(
+            rf"^(\[{re.escape(section)}\].*?)(?=\n\[|\Z)",
+            re.MULTILINE | re.DOTALL,
+        )
+        sec_match = sec_pattern.search(factory_text)
+
+        if sec_match:
+            # Section exists in factory -- overlay user keys
+            def replace_keys_in_section(m):
+                sec_text = m.group(0)
+                for key, user_value in user_keys.items():
                     key_pattern = re.compile(
                         rf"^(\s*{re.escape(key)}\s*:\s*)([^\n]*)",
                         re.MULTILINE,
                     )
                     if key_pattern.search(sec_text):
-                        return key_pattern.sub(rf"\g<1>{live_vals[key]}", sec_text, count=1)
+                        sec_text = key_pattern.sub(
+                            rf"\g<1>{user_value}", sec_text, count=1
+                        )
                     else:
-                        # Key missing in section -- append it
-                        return sec_text.rstrip("\n") + f"\n{key} : {live_vals[key]}\n"
+                        # Key missing in factory section -- append it
+                        sec_text = sec_text.rstrip("\n") + f"\n{key} : {user_value}\n"
+                return sec_text
 
-                if sec_pattern.search(factory_text):
-                    factory_text = sec_pattern.sub(replace_key_in_section, factory_text, count=1)
-                else:
-                    # Section missing entirely -- append at end
-                    factory_text = factory_text.rstrip("\n") + f"\n\n[{section}]\n{key} : {live_vals[key]}\n"
-
-    # 2. Copy any [besh_profile_*] sections from live config in whole
-    besh_names = [s for s in live_sections if s.startswith("besh_profile_")]
-    if besh_names:
-        besh_blocks = extract_sections_text(live_path, set(besh_names))
-        # Append live besh_profile sections at the end (keep factory ones if present)
-        factory_text = factory_text.rstrip("\n") + "\n\n"
-        for name in sorted(besh_names):
-            factory_text += besh_blocks.get(name, "")
+            factory_text = sec_pattern.sub(replace_keys_in_section, factory_text, count=1)
+        else:
+            # Section doesn't exist in factory -- append whole section from user
+            factory_text = factory_text.rstrip("\n") + "\n\n"
+            factory_text += user_blocks.get(section, f"[{section}]\n")
 
     return factory_text
 
@@ -157,10 +141,12 @@ def build_new_config(live_path, factory_path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--live", default=LIVE_CFG)
+    parser.add_argument("--user", default=USER_CFG)
     parser.add_argument("--factory", default=FACTORY_CFG)
     args = parser.parse_args()
 
     live_path = args.live
+    user_path = args.user
     factory_path = args.factory
 
     if not os.path.exists(live_path):
@@ -177,7 +163,6 @@ def main():
     today = datetime.now().strftime("%Y%m%d")
     backup_dir = os.path.dirname(live_path) or "."
     backup_name = f"{backup_dir}/printer.cfg-backup{today}"
-    # Avoid overwriting an existing backup for the same day
     suffix = ""
     counter = 1
     while os.path.exists(backup_name + suffix):
@@ -187,7 +172,15 @@ def main():
     shutil.copy2(live_path, backup_path)
     print(f"Backed up live printer.cfg to {backup_path}")
 
-    new_text = build_new_config(live_path, factory_path)
+    # If user_printer.cfg exists, overlay it onto factory config.
+    # If it doesn't exist, just use the factory config as-is (fresh install
+    # or user never calibrated).
+    if os.path.exists(user_path):
+        new_text = build_new_config(user_path, factory_path)
+    else:
+        with open(factory_path, "r", encoding="utf-8") as f:
+            new_text = f.read()
+
     with open(live_path, "w", encoding="utf-8") as f:
         f.write(new_text)
     print("Updated live printer.cfg with migrated settings.")
