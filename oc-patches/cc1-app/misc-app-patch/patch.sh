@@ -32,4 +32,9 @@ sed -re '1a # Block automatic software updates from Elegoo\n127.0.0.1 mms.chitui
 echo "Install 'noapp' script in /usr/sbin"
 cat "$CURRENT_PATCH_PATH/noapp" > ./usr/sbin/noapp
 chmod 755 ./usr/sbin/noapp
+
+echo "Install update-printer-cfg.py in /app"
+cat "$CURRENT_PATCH_PATH/update-printer-cfg.py" > ./app/update-printer-cfg.py
+chmod 755 ./app/update-printer-cfg.py
+
 cat "$CURRENT_PATCH_PATH/rc.local" >> ./etc/rc.local

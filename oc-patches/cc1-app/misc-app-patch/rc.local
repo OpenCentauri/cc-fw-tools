@@ -4,3 +4,8 @@ if [ -e /app/noapp.kill ]; then
   echo "/app/noapp.kill deleted."
   exit 0
 fi
+
+# Migrate calibration settings from old printer.cfg into new factory config
+if [ -f /app/update-printer-cfg.py ]; then
+    python3 /app/update-printer-cfg.py
+fi
