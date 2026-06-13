@@ -68,10 +68,4 @@ sync
 
 [ "$status" -eq 0 ] || die "swupdate failed with exit code $status"
 
-# Remove persistent config files so they are re-seeded from the new rootfs
-# on next boot. This ensures the updated app defaults take effect.
-rm -f /board-resource/printer.cfg \
-      /board-resource/sysconf.cfg \
-      /board-resource/unmodifiable.cfg
-
 echo "Update finished, run 'reboot' to finalize"
