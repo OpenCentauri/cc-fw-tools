@@ -22,7 +22,6 @@ from datetime import datetime
 LIVE_CFG = "/board-resource/printer.cfg"
 USER_CFG = "/board-resource/user_printer.cfg"
 FACTORY_CFG = "/app/resources/configs/printer.cfg"
-BACKUP_DIR = "/board-resource"
 
 # Home position patch values (from home-position-front-right-patch)
 HOME_PATCH = {
@@ -134,11 +133,13 @@ def apply_home_patch(text):
 def build_new_config(user_path, factory_path):
     """Overlay user_printer.cfg sections onto factory config, return new text.
 
-    This mirrors the app's Setuservalue() logic:
-    - For each section in user_printer.cfg:
-      - If section exists in factory: replace all matching keys with user values
-      - If section doesn't exist in factory: append the whole section
-    - Then apply the home position patch to ensure it's always present
+    Process:
+    1. Apply home position patch to factory base config
+    2. For each section in user_printer.cfg:
+       - If section exists in factory: replace all matching keys with user values
+       - If section doesn't exist in factory: append the whole section
+    3. Re-apply home position patch to ensure invariants are never overridden
+       by user calibration values
     """
     with open(factory_path, "r", encoding="utf-8") as f:
         factory_text = f.read()
@@ -191,14 +192,9 @@ def update_user_printer_cfg(user_path):
     if not os.path.exists(user_path):
         return
 
-    user_sections = parse_config(user_path)
-    user_blocks = extract_sections_text(user_path)
-
-    # Read current user_printer.cfg content
     with open(user_path, "r", encoding="utf-8") as f:
         user_text = f.read()
 
-    # Apply home position patch
     user_text = apply_home_patch(user_text)
 
     with open(user_path, "w", encoding="utf-8") as f:
@@ -230,13 +226,11 @@ def main():
     # Backup
     today = datetime.now().strftime("%Y%m%d")
     backup_dir = os.path.dirname(live_path) or "."
-    backup_name = f"{backup_dir}/printer.cfg-backup{today}"
-    suffix = ""
+    backup_path = f"{backup_dir}/printer.cfg-backup{today}"
     counter = 1
-    while os.path.exists(backup_name + suffix):
-        suffix = f"-{counter}"
+    while os.path.exists(backup_path):
+        backup_path = f"{backup_dir}/printer.cfg-backup{today}-{counter}"
         counter += 1
-    backup_path = backup_name + suffix
     shutil.copy2(live_path, backup_path)
     print(f"Backed up live printer.cfg to {backup_path}")
 
