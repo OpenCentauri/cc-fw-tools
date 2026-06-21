@@ -79,7 +79,8 @@ There are **no other code caves** in the current 1.4.46 patch set. The next avai
 
 ### `disable-exhaust-fan-patch` (1.4.46)
 **Type:** In-place binary patch
-- `0x0035d508`, `0x0035d50c`, `0x0035d5d4`, `0x0035d5d8`
+- `0x0035d508`: `bne 0x0035d5d8` -> `nop`
+- `0x0035d5d4`: `beq 0x0035d50c` -> `b 0x0035d50c`
 **No cave used.**
 
 ### `do-not-block-z-offset-adjust-patch` (1.4.46)
