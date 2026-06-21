@@ -1,0 +1,39 @@
+name: Promote to Beta Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Build run ID to promote (from Actions > Build OpenCentauri FW)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    name: Promote Build to Beta
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifact from build run
+        uses: actions/download-artifact@v4
+        with:
+          name: CC1 Firmware
+          path: .
+          run-id: ${{ github.event.inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update 0.0.0 beta release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          # Create the 0.0.0 release if it doesn't exist; ignore error if it does
+          gh release create 0.0.0 \
+            --title "Beta (0.0.0)" \
+            --notes "Latest beta build from run ${{ github.event.inputs.run_id }} — commit ${{ github.sha }}" \
+            --prerelease || true
+          
+          # Upload (or overwrite) update.swu to the 0.0.0 release
+          gh release upload 0.0.0 update.swu --clobber
