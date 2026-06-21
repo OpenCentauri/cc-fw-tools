@@ -12,9 +12,15 @@ kill $(pgrep wpa_supplicant) &>/dev/null
 sleep 1
 
 echo "Bootstrapping wlan0..."
+echo "Bootstrapping wlan0..."
+# AIC8800 USB WiFi driver (firmware loader + main driver)
 modprobe aic_load_fw
 modprobe aic8800_fdrv
+# RTL8821CU / RTL8811CU USB WiFi driver
 modprobe 8821cu
+# RTL8723DU USB WiFi driver
+modprobe 8723du
+sleep 2
 modprobe 8723du
 sleep 2
 wpa_supplicant -D nl80211,wext -C /var/run/wpa_supplicant -B -i wlan0
