@@ -4,15 +4,17 @@
 
 ## Executive Summary
 
-The 1.4.46 app binary uses three **injected code caves** (new trampolines written into zero-filled executable space) and several **in-place patches** (single instructions or existing function bodies modified directly). The three caves are:
+The 1.4.46 app binary uses four **injected code caves** (new trampolines written into zero-filled executable space) and several **in-place patches** (single instructions or existing function bodies modified directly). The four caves are:
 
 | Cave Address | Used By | Size | End |
 |--------------|---------|------|-----|
 | `0x00450100` | `fix-noncanvas-load` | 0x48 bytes | `0x00450147` |
 | `0x00450200` | `wait-for-chamber-temp` | 0xd8 bytes | `0x004502d7` |
 | `0x00450a00` | `report-filament-usage` | 0xc4 bytes | `0x00450ac3` |
+| `0x00450b00` | `fix-end-print-hang` | 0x80 bytes reserved, 0x44 used | `0x00450b7f` |
+| `0x00450c00` | `fix-end-print-hang` command string | 0x40 bytes reserved | `0x00450c3f` |
 
-There are **no other code caves** in the current 1.4.46 patch set. The next available zero-filled region after `0x00450ac3` is unallocated; any new patch needing a cave should claim from there and document it here.
+There are **no other code caves** in the current 1.4.46 patch set. The next available zero-filled region after `0x00450c3f` is unallocated; any new patch needing a cave should claim from there and document it here.
 
 ## Patch-by-Patch Breakdown
 
@@ -48,6 +50,15 @@ There are **no other code caves** in the current 1.4.46 patch set. The next avai
 **Type:** Single-instruction in-place patch
 - `0x00239714`: `movne r0, #1` → `mov r0, #0` (0x13A00001 → 0xE3A00000)
 **No cave used.**
+
+### `fix-end-print-hang` (1.4.46 only)
+**Type:** Branch-hook trampoline cave + command string
+**Cave:** `0x00450b00` — `0x00450b7f` (0x80 bytes reserved, 0x44 used)
+**Data string:** `0x00450c00` — `0x00450c3f` (`M117 OpenCentauri Print Complete`)
+**Branch hook:**
+- `0x0035dba4` → `0x00450b00` (was `strb r5, [r4, #0x62c]`)
+**Resume:** `0x0035dbac`
+**Interaction note:** Same `sub_35cf58` function as `disable-exhaust-fan-patch`, but no overlapping bytes (`disable_exhaust_fan` uses `0x0035d508` and `0x0035d5d4`).
 
 ### `add-chamber-light-gcode-patch` (1.4.46)
 **Type:** Existing function body rewrite
