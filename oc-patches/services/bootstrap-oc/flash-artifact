@@ -44,7 +44,8 @@ def main():
 
     # Ensure unzip is available
     if subprocess.run(["which", "unzip"], capture_output=True).returncode != 0:
-        print("unzip not found; installing via opkg...")
+        print("unzip not found; updating opkg and installing...")
+        subprocess.run(["opkg", "update"], check=True)
         subprocess.run(["opkg", "install", "unzip"], check=True)
 
     print(f"Unpacking {zip_name} ...")
