@@ -72,4 +72,6 @@ if [ $? -ne 0 ]; then
     echo "Error re-packing the firmware, aborting..."
     exit 1
 fi
+echo "Packing the firmware into update/force_upgrade.bin..."
+sudo ./fup.sh
 echo
