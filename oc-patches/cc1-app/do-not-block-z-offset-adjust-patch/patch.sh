@@ -11,7 +11,16 @@ project_root="$REPOSITORY_ROOT"
 source "$project_root/TOOLS/helpers/utils.sh" "$project_root"
 check_tools "bspatch"
 
+if [ "$FW_VER" = "1.1.40" ]; then
+  bsdiff_file="no-block-z-offset-1.1.40.bsdiff"
+elif [ "$FW_VER" = "1.4.46" ]; then
+  bsdiff_file="no-block-z-offset-1.4.46.bsdiff"
+else
+  echo "Unsupported firmware version for always allow z offset adjust patch: $FW_VER"
+  exit 1
+fi
+
 cd "$SQUASHFS_ROOT/app"
-bspatch ./app ./app-patch "$CURRENT_PATCH_PATH/no-block-z-offset.bsdiff"
+bspatch ./app ./app-patch "$CURRENT_PATCH_PATH/$bsdiff_file"
 rm ./app
 mv ./app-patch ./app

@@ -11,7 +11,7 @@ source "$project_root/TOOLS/helpers/utils.sh" "$project_root"
 # --- Firmware Selection ---
 #DEFAULT_FW="FW/FW-CentauriCarbon-v1.1.25-2025-05-09.bin"
 #DEFAULT_FW="FW-CentauriCarbon-v1.1.40-2025-08-15.bin"
-[[ -z "$1" ]] && VERSION="1.1.40" || VERSION="$1"
+[[ -z "$1" ]] && VERSION="1.4.46" || VERSION="$1"
 FIRMWARE_FILE=""
 
 if [ -n "$VERSION" ]; then
@@ -72,4 +72,6 @@ if [ $? -ne 0 ]; then
     echo "Error re-packing the firmware, aborting..."
     exit 1
 fi
+echo "Packing the firmware into update/force_upgrade.bin..."
+sudo ./fup.sh
 echo

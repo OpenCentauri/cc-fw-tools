@@ -1,0 +1,48 @@
+#!/bin/sh /etc/rc.common
+
+START=83
+DEPEND=fstab
+
+boot() {
+    SRC_DIR="/mnt/exUDISK"
+
+    # Wait up to 5sec for the USB devnode to be available
+    i=0; while ! [ -e /dev/sda1 ] && [ $i -lt 30 ]; do sleep 0.1; i=$((i+1)); done
+    # If /dev/sda1 (USB stick) is not detected by kernel, then exit
+    #/sbin/block info /dev/sda1 || return 0
+    test -e /dev/sda1 || return 0
+    
+    # Wait up to 5sec for the exUDISK mount to be available, which is where the potential emergency.swu lives
+    i=0; while ! grep -qs "$SRC_DIR" /proc/mounts && [ $i -lt 50 ]; do sleep 0.1; i=$((i+1)); done
+
+    # If /mnt/exUDISK (USB stick) is not mounted, then exit
+    grep -qs "$SRC_DIR" /proc/mounts || return 0
+
+    SWU_FILE="$SRC_DIR/emergency.swu"
+    SWU_INSTALLED_FILE="$SRC_DIR/emergency.installed.swu"
+    SUCCESS_FILE="${SWU_INSTALLED_FILE}.success"
+    FAILED_FILE="${SWU_INSTALLED_FILE}.failed"
+
+    if [ ! -f "$SWU_FILE" ]; then
+        return 0
+    fi
+
+    mv "$SWU_FILE" "$SWU_INSTALLED_FILE" || return 1
+    rm -f "$FAILED_FILE" "$SUCCESS_FILE"
+
+    echo "Installing firmware"
+    echo "A firmware update is being installed, please wait..."
+
+    if ! flash "$SWU_INSTALLED_FILE"; then
+        echo "flash failed" > "$FAILED_FILE"
+        return 1
+    fi
+
+    echo "Firmware update complete"
+    echo "Initiating reboot of printer to finalize the update..."
+    touch "$SUCCESS_FILE"
+
+    sync
+    sleep 1
+    reboot
+}

@@ -1,0 +1,4 @@
+id = "fix_singlecolor_filament_selection"
+name = "Fix single-color filament selection ignoring user choice"
+after = ["base"]
+compatible_versions = ["1.4.46"]

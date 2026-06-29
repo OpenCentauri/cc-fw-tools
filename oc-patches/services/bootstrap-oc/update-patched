@@ -1,0 +1,28 @@
+#!/bin/sh
+
+set -e
+
+REPO="OpenCentauri/cc-fw-tools"
+FW_URL="https://github.com/${REPO}/releases/download/0.0.0/update.swu"
+SWUFILE="/user-resource/update.swu"
+
+# Download firmware
+curl -k -f -S -o "$SWUFILE" -L "$FW_URL" || {
+    echo "Error: failed to download beta firmware from ${FW_URL}" >&2
+    exit 1
+}
+
+# Sanity check: file must exist and be non-empty
+if [ ! -s "$SWUFILE" ]; then
+    echo "Error: downloaded firmware file is empty or missing" >&2
+    rm -f "$SWUFILE"
+    exit 1
+fi
+
+# Install firmware
+flash "$SWUFILE"
+
+# Clean up firmware file
+rm -f "$SWUFILE"
+
+reboot

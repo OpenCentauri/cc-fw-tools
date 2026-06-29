@@ -13,6 +13,9 @@ versions["1.1.29"]="https://download.chitubox.com/chitusystems/chitusystems/publ
 # Thanks Anna!
 versions["1.1.40"]="https://s3.devminer.xyz/archive/ELEGOO_Centauri_Update_1.1.40.bin"
 versions["1.1.42"]="https://download.chitubox.com/chitusystems/chitusystems/public/printer/firmware/release/1/ca8e1d9a20974a5896f8f744e780a8a7/1/1.1.42/2025-09-18/5de8bf345f044452a815dcf91241ddc0.bin"
+# Thanks Anna!
+versions["1.4.44"]="https://s3.devminer.xyz/archive/ELEGOO_Centauri_Update_1.4.44.bin"
+versions["1.4.46"]="https://download.chitubox.com/chitusystems/chitusystems/public/printer/firmware/release/1/ca8e1d9a20974a5896f8f744e780a8a7/1/1.4.46/2026-05-08/104101205ee740a68a3bc049f0b03c70.bin"
 
 declare -A dates
 dates["1.1.18"]="2025-03-31"
@@ -20,6 +23,8 @@ dates["1.1.25"]="2025-05-09"
 dates["1.1.29"]="2025-06-18"
 dates["1.1.40"]="2025-08-15"
 dates["1.1.42"]="2025-09-18"
+dates["1.4.44"]="2026-04-03"
+dates["1.4.46"]="2026-05-08"
 
 # --- Function to select version ---
 select_version() {

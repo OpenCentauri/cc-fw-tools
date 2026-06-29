@@ -69,7 +69,7 @@ else
     echo "Run command manually to complete flash:"
     echo ssh -p $port $usernaappuser@$ip "swupdate_cmd.sh -i /user-resource/update.swu -e stable,${boot_partition} -k /etc/swupdate_public.pem"
     echo "Or use this script again to commit:"
-    echo ./upload.sh $ip --flash
+    echo ./install.sh $ip --flash
 fi
 echo "SUCCESS!"
 exit 0

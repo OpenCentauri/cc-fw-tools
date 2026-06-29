@@ -1,0 +1,71 @@
+#!/bin/sh
+
+usage()
+{
+    echo "Usage: $0 path/to/update.swu" >&2
+    exit 1
+}
+
+die()
+{
+    echo "Error: $*" >&2
+    exit 1
+}
+
+[ "$#" -eq 1 ] || usage
+
+image=$1
+
+case "$image" in
+    *.swu) ;;
+    *) die "update image must be a .swu file" ;;
+esac
+
+[ -f "$image" ] || die "file not found: $image"
+[ -r "$image" ] || die "file is not readable: $image"
+
+command -v fw_printenv >/dev/null 2>&1 || die "fw_printenv not found"
+command -v swupdate >/dev/null 2>&1 || die "swupdate not found"
+
+current_boot=$(fw_printenv -n boot_partition 2>/dev/null || true)
+
+case "$current_boot" in
+    bootA|A)
+        boot_partition="now_A_next_B"
+        ;;
+    bootB|B)
+        boot_partition="now_B_next_A"
+        ;;
+    *)
+        system_ab_next=$(fw_printenv -n systemAB_next 2>/dev/null || true)
+        case "$system_ab_next" in
+            A)
+                boot_partition="now_A_next_B"
+                current_boot="A"
+                ;;
+            B)
+                boot_partition="now_B_next_A"
+                current_boot="B"
+                ;;
+            *)
+                die "could not determine boot slot: boot_partition='$current_boot' systemAB_next='$system_ab_next'"
+                ;;
+        esac
+        ;;
+esac
+
+echo "Current boot: $current_boot"
+echo "SWUpdate target: stable,$boot_partition"
+
+if [ -r /etc/swupdate_public.pem ]; then
+    swupdate -v -N 0.0.0 -i "$image" -e "stable,$boot_partition" -k /etc/swupdate_public.pem
+else
+    swupdate -v -N 0.0.0 -i "$image" -e "stable,$boot_partition"
+fi
+
+status=$?
+sync
+
+[ "$status" -eq 0 ] || die "swupdate failed with exit code $status"
+
+echo "Update finished, run 'reboot' to finalize"

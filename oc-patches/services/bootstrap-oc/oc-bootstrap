@@ -7,45 +7,87 @@ boot() {
     i=0; while ! grep -qs '/user-resource' /proc/mounts && [ $i -lt 50 ]; do sleep 0.1; i=$((i+1)); done
     
     # INITIALIZE OpenCentauri and entware
-    mkdir -p /user-resource/OpenCentauri/entware \
-            /user-resource/OpenCentauri/root \
-            /opt /root
-    mount -o bind /user-resource/OpenCentauri/entware /opt
-    mount -o bind /user-resource/OpenCentauri/root /root
-    # Bootstrap entware and the root homedir if needed!
-    if [ ! -f /opt/etc/entware_release ]; then
-    cd /user-resource &&
-        tar zxvf /app/OpenCentauri-bootstrap.tar.gz
+    mkdir -p /user-resource/.root \
+             /user-resource/.kipware \
+             /kip /opt /root
+    # Old Entware deprecated
+    #mount -o bind /user-resource/OpenCentauri/entware /opt
+    mount -o bind /user-resource/.kipware /kip
+    mount -o bind /user-resource/.root /root
+    # Bootstrap kipware if needed!
+    if [ ! -f /kip/etc/entware_release ]; then
+    cd / &&
+        tar zxvf /app/kipware.tar.gz user-resource
+        echo 'Entware is now Kipware, and lives in /kip! Now with more Mudkips...' > /opt/Kipware-Info.txt
+    fi
+    # Bootstrap root homedir if needed!
+    if [ ! -f /root/.profile ]; then
+        echo '[ -x /kip/bin/bash ] && exec /kip/bin/bash -l' > /root/.profile
+    fi
+    if [ ! -f /root/.bash_profile ]; then
+        echo '. /kip/profile-kipware.sh' > /root/.bash_profile
+    fi
+    # Create symlink to old root homedir if exists
+    if [ -d /user-resource/OpenCentauri/root ]; then
+        ln -sf /user-resource/OpenCentauri/root /root/legacy-root-homedir
     fi
     # Once entware is properly installed, do the things!
-    if [ -f /opt/etc/entware_release ]; then
+    if [ -f /kip/etc/entware_release ]; then
         # Add entware to path for rest of rc.local execution
-        export PATH="/opt/sbin:/opt/bin:$PATH"
+        export PATH="/kip/sbin:/kip/bin:$PATH"
 
         # Mount the USB FAT/exFAT drive if available or if it becomes available
         mount_usb_daemon &
+
+        # Generate openssh host keys in /kip/etc/ssh (if needed, else it skips)
+        ssh-keygen -A
+
+        # Enable root login if this is the first boot after installing Kipware
+        sed -re 's/^#PermitRootLogin.*/PermitRootLogin yes/' -i /kip/etc/ssh/sshd_config
+
+        # Start entware system services, includes openssh
+        /kip/etc/init.d/rc.unslung start
+
+        # Start wlan0 interface if available
+        /app/oc-startwifi.sh &
+        sleep 2
+
+        # Start DHCPD for usb0 network interface if available! If not then don't try.
+        ifconfig usb0 && udhcpc -i usb0 -f -p /tmp/usb0_udhcpc.pid \
+                                -s /usr/share/udhcpc/default.script \
+                                -x hostname:Centauri-Carbon \
+                                -A 5 -t 10 -T 3 &
+        #ifconfig usb0 && udhcpc -i usb0 -b -p /tmp/usb0_udhcpc.pid -s /usr/share/udhcpc/default.script -x hostname:Centauri-Carbon &
+
+        # Load Realtek/ASIX kmods and start DHCP client for eth0 network interface if available! If not then don't try.
+        modprobe r8152
+        modprobe ax88179_178a
+        sleep 2
+
+        ifconfig eth0 && udhcpc -i eth0 -f -p /tmp/eth0_udhcpc.pid \
+                                -s /usr/share/udhcpc/default.script \
+                                -x hostname:Centauri-Carbon \
+                                -A 5 -t 10 -T 3 &
+        #ifconfig eth0 && udhcpc -i eth0 -b -p /tmp/eth0_udhcpc.pid -s /usr/share/udhcpc/default.script -x hostname:Centauri-Carbon &
+
+        # Force a DHCP renewal in udhcpc every 6 hours as a safety net, reasoning:
+        # BusyBox v1.27.2 (TinaLinux version) has a documented issue where udhcpc 
+        # waits until the last 60 seconds of a lease before broadcasting a
+        # DHCPREQUEST renewal. If the DHCP server is even slightly busy or udhcpc
+        # drifts timing-wise, it can miss the window entirely and let the lease
+        # expire, sometimes causing the daemon to stall or exit.
+        sh -c "while [ 1 ]; do sleep 21616; killall -USR1 udhcpc; done" &
 
         # Update mlocate db now, and every 24 hours!
         sh -c "while [ 1 ]; do updatedb; sleep 86400; done" &
 
         # Synchronize time to NTP, and every 24 hours!
-        sh -c "while [ 1 ]; do /usr/sbin/ntpdate %OC_NTP_SERVER%; sleep 86400; done" &
+        sh -c 'while true; do
+            until /usr/sbin/ntpdate pool.ntp.org; do
+                sleep 5
+            done
+            sleep 86400
+        done'
 
-        # Generate openssh host keys in /opt/etc/ssh (if needed, else it skips)
-        ssh-keygen -A
-
-        # Start entware system services, includes openssh
-        /opt/etc/init.d/rc.unslung start
-
-        # Start wlan0 interface if available
-        /app/oc-startwifi.sh
-
-        # Start DHCPD for usb0 network interface if available! If not then don't try.
-        ifconfig usb0 && udhcpc -i usb0 -b -p /tmp/usb0_udhcpc.pid -s /usr/share/udhcpc/default.script -x hostname:Centauri-Carbon &
-
-        # Load Realtek/ASIX kmods and start DHCP client for eth0 network interface if available! If not then don't try.
-        modprobe r8152
-        modprobe ax88179_178a
-        ifconfig eth0 && udhcpc -i eth0 -b -p /tmp/eth0_udhcpc.pid -s /usr/share/udhcpc/default.script -x hostname:Centauri-Carbon &
     fi
 }

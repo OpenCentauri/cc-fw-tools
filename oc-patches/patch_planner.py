@@ -2,6 +2,7 @@ import tomllib
 from enum import Enum
 import os
 import logging
+import shlex
 import sys
 from graphlib import TopologicalSorter
 import subprocess
@@ -16,13 +17,14 @@ FW_VER = ""
 
 with open(os.path.join(PATCHES_ROOT, "patch_config")) as f:
     for line in f:
-        if line.startswith("#"):
+        line = line.strip()
+        if not line or line.startswith("#"):
             continue
 
-        items = line.strip().split("=", 1)
-        if len(items) >= 2:
-            key, value = items
-            if key and value:
+        items = shlex.split(line, comments=True)
+        if len(items) == 1:
+            key, separator, value = items[0].partition("=")
+            if separator and key and value:
                 os.environ[key] = value
 
 class ExecutionPolicy(Enum):

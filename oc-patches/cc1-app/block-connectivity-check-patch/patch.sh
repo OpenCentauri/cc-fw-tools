@@ -7,15 +7,15 @@ fi
 
 set -e
 
-if [[ "$FW_VER" == "1.1.40" ]]; then
-    echo "Applying binary patch for 1.1.40"
+if [[ "$FW_VER" == "1.1.40" || "$FW_VER" == "1.4.46" ]]; then
+    echo "Applying binary patch for $FW_VER"
 
     project_root="$REPOSITORY_ROOT"
     source "$project_root/TOOLS/helpers/utils.sh" "$project_root"
     check_tools "bspatch"
 
     cd "$SQUASHFS_ROOT/app"
-    bspatch ./app ./app-patch "$CURRENT_PATCH_PATH/disable-connectivity-checks-1.1.40.bsdiff"
+    bspatch ./app ./app-patch "$CURRENT_PATCH_PATH/disable-connectivity-checks-$FW_VER.bsdiff"
     rm ./app
     mv ./app-patch ./app
 else

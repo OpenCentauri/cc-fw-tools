@@ -4,7 +4,9 @@
 ### You can edit variables in here to tweak settings in the FW!
 ###
 
-OC_BOOTSTRAP_MD5=a0a2eb05011884f1ab281ed4980ee3a7
+KIP_BOOTSTRAP_URL='https://github.com/pdscomp/Kipware/releases/download/2026-06-20/kipware-cc1-2026-06-20.tar.gz'
+KIP_BOOTSTRAP_PATH='./app/kipware.tar.gz'
+KIP_BOOTSTRAP_SHA256=031132eb441845836151fb9d65b81bf8d667bff79fc00f97288bebb940e92667
 
 # How long to wait until starting /app/app on boot
 # If non-zero, you can SSH in after boot and run 'noapp' to prevent start
@@ -18,7 +20,7 @@ OC_NTP_SERVER=pool.ntp.org
 OC_APP_GADGET=/dev/ttyACM0
 
 BLOCK_CONNECTIVITY_CHECK=true
-#BLOCK_UPDATE_CHECK=true
+BLOCK_UPDATE_CHECK=true
 API_DURING_PRINTING=true
 DISABLE_EXHAUST_FAN=true
 ADD_CHAMBER_LIGHT_GCODE=true
@@ -28,6 +30,9 @@ SET_FIRMWARE_VERSION=true
 ALWAYS_ALLOW_Z_OFFSET_ADJUST=true
 WAIT_FOR_CHAMBER_TEMP=true
 REPORT_FILAMENT_USAGE=true
+FIX_NONCANVAS_LOAD=true
+FIX_SINGLECOLOR_FILAMENT_SELECTION=true
+FIX_END_PRINT_HANG=true
 OTA_UPDATES=true
 UPLOAD_DURING_PRINTING=true
 UBOOT=true
