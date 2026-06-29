@@ -1,25 +1,3 @@
 id = "fix_end_print_hang"
 name = "Fix end-print stock firmware hang by sending M117 completion message"
-# This bsdiff is generated against the patched-edition app chain below. Treat
-# these app-binary patches as hard dependencies so the guarded input hash cannot
-# fail late after patch_planner has already mutated the tree.
-requires = [
-  "upload_during_printing",
-  "always_allow_z_offset_adjust",
-  "api_during_printing",
-  "wait_for_chamber_temp",
-  "report_filament_usage",
-  "fix_singlecolor_filament_selection",
-  "disable_exhaust_fan",
-  "add_chamber_light_gcode",
-  "block_connectivity_check",
-  "fix_noncanvas_load",
-  "ota_updates",
-]
-
-after = [
-  "block_update_check",
-  "misc_app",
-  "home_position_front_right",
-]
 compatible_versions = ["1.4.46"]
