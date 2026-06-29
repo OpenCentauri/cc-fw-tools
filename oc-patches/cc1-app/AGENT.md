@@ -100,7 +100,10 @@ There are **no other code caves** in the current 1.4.46 patch set. The next avai
 **No cave used.**
 
 ### `set-firmware-version-patch`
-**Not enabled for 1.4.46** (`compatible_versions = ["1.1.40"]`). No 1.4.46 addresses.
+**Enabled for 1.1.40 and 1.4.46.** Replaces the stock firmware version string in `app/app` with the OpenCentauri git-describe version.
+- 1.1.40: offset `0x34F6E8`
+- 1.4.46: offset `0x003F9A38`
+- No cave used.
 
 ## Collision Rules for New Patches
 
