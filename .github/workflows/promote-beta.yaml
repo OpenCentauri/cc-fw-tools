@@ -24,16 +24,30 @@ jobs:
           run-id: ${{ github.event.inputs.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Update 0.0.0 beta release
+      - name: Update v0.0.0 beta release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: |
-          # Create the 0.0.0 release if it doesn't exist; ignore error if it does
-          gh release create 0.0.0 \
-            --title "Beta (0.0.0)" \
-            --notes "Latest beta build from run ${{ github.event.inputs.run_id }} — commit ${{ github.sha }}" \
-            --prerelease || true
-          
-          # Upload (or overwrite) update.swu to the 0.0.0 release
-          gh release upload 0.0.0 update.swu --clobber
+          VERSION="v0.0.0"
+          TITLE="${VERSION} - beta pre-release, do not install unless instructed"
+          NOTES="Latest beta build from run ${{ github.event.inputs.run_id }} — commit ${{ github.sha }}"
+
+          if gh release view "${VERSION}" >/dev/null 2>&1; then
+            echo "Release ${VERSION} exists; updating target, title, and notes."
+            gh release edit "${VERSION}" \
+              --target "${GITHUB_SHA}" \
+              --title "${TITLE}" \
+              --notes "${NOTES}" \
+              --prerelease
+          else
+            echo "Creating release ${VERSION}."
+            gh release create "${VERSION}" \
+              --target "${GITHUB_SHA}" \
+              --title "${TITLE}" \
+              --notes "${NOTES}" \
+              --prerelease
+          fi
+
+          # Upload (or overwrite) update.swu to the v0.0.0 release
+          gh release upload "${VERSION}" update.swu --clobber
