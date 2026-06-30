@@ -27,7 +27,6 @@ EXPECTED_SIZE = 4_787_332
 
 # Hook the BL to sub_1c7908() at the end of PauseResume::cmd_M600.
 HOOK_VA = 0x001B84C4
-RESUME_VA = 0x001B84C8  # instruction after the original BL
 
 # Code cave immediately after the fix-end-print-hang reserved area.
 CODE_CAVE_VA = 0x00450D00
@@ -40,6 +39,11 @@ COMMAND = b"M104 S200\0"
 
 # Original instruction at the hook: bl sub_1c7908
 ORIG_HOOK = bytes.fromhex("0f 3d 00 eb")
+ORIG_HOOK_TARGET = 0x001C7908
+
+# data_4b1034[0x39] is the gcode object pointer consumed by sub_50b88 (cmd_raw).
+GCODE_OBJ_PTR_VA = 0x004B1034
+GCODE_OBJ_PTR_OFFSET_BYTES = 0xE4
 
 
 def u32(value: int) -> bytes:
@@ -68,6 +72,14 @@ def arm_bl(src_va: int, dst_va: int) -> int:
     if not -(1 << 23) <= imm < (1 << 23):
         raise ValueError(f"branch target out of range: {src_va:#x} -> {dst_va:#x}")
     return 0xEB000000 | (imm & 0x00FFFFFF)
+
+
+def decode_bl_target(src_va: int, instr: int) -> int:
+    """Decode the target of an ARM BL/B instruction at src_va."""
+    imm = instr & 0x00FFFFFF
+    if imm & 0x800000:
+        imm -= 0x1000000
+    return src_va + 8 + (imm << 2)
 
 
 def arm_movw(reg: int, imm16: int, cond: int = 0xE) -> int:
@@ -109,13 +121,13 @@ def build_trampoline() -> bytes:
         pc += 4
 
     emit(PUSH_R0_R3_IP_LR)                    # preserve r0-r3, ip, lr
-    emit(arm_movw(0, 0x1034))                 # r0 = &data_4b1034
-    emit(arm_movt(0, 0x004B))
+    emit(arm_movw(0, GCODE_OBJ_PTR_VA & 0xFFFF))  # r0 = &data_4b1034
+    emit(arm_movt(0, GCODE_OBJ_PTR_VA >> 16))
     emit(LDR_R0_R0_0)                         # r0 = data_4b1034
     emit(CMP_R0_0)
     restore_beq_1_pc = pc
     emit(0)                                   # beq .Lrestore, filled later
-    emit(LDR_R0_R0_0XE4)                      # r0 = data_4b1034[0x39] (gcode object)
+    emit(0xE5900000 | (GCODE_OBJ_PTR_OFFSET_BYTES & 0xFFF))  # r0 = data_4b1034[0x39] (gcode object)
     emit(CMP_R0_0)
     restore_beq_2_pc = pc
     emit(0)                                   # beq .Lrestore, filled later
@@ -125,7 +137,7 @@ def build_trampoline() -> bytes:
     emit(arm_bl(pc, 0x00050B88))              # sub_50b88(gcode_obj, command, 0)
     restore_va = pc
     emit(POP_R0_R3_IP_LR)                     # restore registers
-    emit(arm_b(pc, 0x001C7908))               # tail-call original sub_1c7908
+    emit(arm_b(pc, ORIG_HOOK_TARGET))         # tail-call original sub_1c7908
 
     # Patch the two conditional branches to jump to .Lrestore if data is missing.
     words[(restore_beq_1_pc - CODE_CAVE_VA) // 4] = arm_b(restore_beq_1_pc, restore_va, cond=0x0)
@@ -143,10 +155,17 @@ def patch_app(src: Path, dst: Path) -> None:
         raise SystemExit(f"Unexpected app size {len(data)}; expected {EXPECTED_SIZE}")
 
     hook_off = va_to_off(HOOK_VA)
-    if bytes(data[hook_off:hook_off + 4]) != ORIG_HOOK:
+    orig_instr = bytes(data[hook_off:hook_off + 4])
+    if orig_instr != ORIG_HOOK:
         raise SystemExit(
             f"Refusing to patch hook {HOOK_VA:#x}: got "
-            f"{bytes(data[hook_off:hook_off + 4]).hex(' ')}, want {ORIG_HOOK.hex(' ')}"
+            f"{orig_instr.hex(' ')}, want {ORIG_HOOK.hex(' ')}"
+        )
+    actual_target = decode_bl_target(HOOK_VA, int.from_bytes(orig_instr, "little"))
+    if actual_target != ORIG_HOOK_TARGET:
+        raise SystemExit(
+            f"Refusing to patch hook {HOOK_VA:#x}: BL target {actual_target:#x} != "
+            f"{ORIG_HOOK_TARGET:#x}"
         )
 
     cave_off = va_to_off(CODE_CAVE_VA)

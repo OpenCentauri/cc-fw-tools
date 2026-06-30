@@ -83,6 +83,6 @@ A minimal reproduction gcode is included in `m600-test.gcode` (heats to 220 °C,
 
 | File | SHA-256 |
 |------|---------|
-| pre-patch app | `6d24924bff23083836678a4cda6446c7e6859ec9b9a61fccdc332f611b013b05` |
-| post-patch app | `3bde8bc2255e0d9c2b9878730f2ea4e64ed07047d16df4ae57b2476143cb76fa` |
+| pre-fix-m600-pause intermediate app (after fix-end-print-hang) | `6d24924bff23083836678a4cda6446c7e6859ec9b9a61fccdc332f611b013b05` |
+| post-fix-m600-pause app | `3bde8bc2255e0d9c2b9878730f2ea4e64ed07047d16df4ae57b2476143cb76fa` |
 | bsdiff | `3b86b604c75fb975b5496a156c3d8d68703ca4cbc17ff8dac5852251714d1d2b` |
