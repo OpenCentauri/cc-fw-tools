@@ -82,10 +82,14 @@ boot() {
         sh -c "while [ 1 ]; do updatedb; sleep 86400; done" &
 
         # Synchronize time to NTP, and every 24 hours!
-        # ponytail: backgrounded so boot() can return; sleeps first so WiFi/DHCP wins race
+        # Backgrounded so boot() can return; sleeps first so WiFi/DHCP wins the race.
+        # Cap the initial retry burst so an air-gapped or offline device does not hammer
+        # pool.ntp.org forever; the next 24-hour cycle will try again.
         sh -c 'sleep 30
             while true; do
-                until /usr/sbin/ntpdate -u pool.ntp.org >/tmp/ntpdate.log 2>&1; do
+                n=0
+                until /usr/sbin/ntpdate -u pool.ntp.org >/tmp/ntpdate.log 2>&1 || [ "$n" -ge 60 ]; do
+                    n=$((n+1))
                     sleep 5
                 done
                 sleep 86400
