@@ -1,0 +1,9 @@
+id = "fix_m600_pause"
+name = "Fix M600 pause hang by keeping the hotend warm after unload"
+requires = [
+  "fix_end_print_hang",
+]
+after = [
+  "fix_end_print_hang",
+]
+compatible_versions = ["1.4.46"]

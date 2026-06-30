@@ -13,8 +13,10 @@ The 1.4.46 app binary uses four **injected code caves** (new trampolines written
 | `0x00450a00` | `report-filament-usage` | 0xc4 bytes | `0x00450ac3` |
 | `0x00450b00` | `fix-end-print-hang` | 0x80 bytes reserved, 0x44 used | `0x00450b7f` |
 | `0x00450c00` | `fix-end-print-hang` command string | 0x40 bytes reserved | `0x00450c3f` |
+| `0x00450c40` | `fix-m600-pause` command string | 0x40 bytes reserved | `0x00450c7f` |
+| `0x00450d00` | `fix-m600-pause` | 0x80 bytes reserved | `0x00450d7f` |
 
-There are **no other code caves** in the current 1.4.46 patch set. The next available zero-filled region after `0x00450c3f` is unallocated; any new patch needing a cave should claim from there and document it here.
+There are **no other code caves** in the current 1.4.46 patch set. The next available zero-filled region after `0x00450d7f` is unallocated; any new patch needing a cave should claim from there and document it here.
 
 ## Patch-by-Patch Breakdown
 
@@ -59,6 +61,16 @@ There are **no other code caves** in the current 1.4.46 patch set. The next avai
 - `0x0035dba4` → `0x00450b00` (was `strb r5, [r4, #0x62c]`)
 **Resume:** `0x0035dbac`
 **Interaction note:** Same `sub_35cf58` function as `disable-exhaust-fan-patch`, but no overlapping bytes (`disable_exhaust_fan` uses `0x0035d508` and `0x0035d5d4`).
+
+### `fix-m600-pause` (1.4.46 only)
+**Type:** Branch-hook trampoline cave + command string
+**Cave:** `0x00450d00` — `0x00450d7f` (0x80 bytes reserved)
+**Data string:** `0x00450c40` — `0x00450c7f` (`M104 S200`)
+**Branch hook:**
+- `0x001b84c4` → `0x00450d00` (was `bl sub_1c7908`)
+**Resume:** `0x001b84c8`
+**Why:** The 1.4.46 M600 handler dispatches the resume/change-filament-completed event after unload without setting the hotend temperature, so the UI waits indefinitely while the hotend cools to 0 °C. The trampoline injects `M104 S200` before the event dispatch.
+**Interaction note:** None of the other patches touch `sub_1b81e4` or the caves at `0x00450c40`/`0x00450d00`.
 
 ### `add-chamber-light-gcode-patch` (1.4.46)
 **Type:** Existing function body rewrite
@@ -112,4 +124,4 @@ There are **no other code caves** in the current 1.4.46 patch set. The next avai
 3. **Always run `patch_planner.py 1.4.46 --dry-run` after adding a new patch.** It shows the full ordered patch chain. Then build with `sudo ./build.sh 1.4.46` and disassemble the final app to verify all cave addresses.
 4. **Document new caves in this file.** If you add a patch that uses a code cave, append its address range to the table above and update the summary.
 5. **Prefer in-place single-instruction patches when possible.** If the fix is just forcing a constant or removing a branch, patch the single instruction directly (like `fix-singlecolor-filament-selection`). This avoids cave contention entirely.
-6. **Claim the next free cave from the top.** The current top of the used cave space is `0x00450ac3`. If you need a new cave, check the stock binary for zero-filled executable space above that address and claim the next block. Document the exact start and end in your patch README and in this file.
+6. **Claim the next free cave from the top.** The current top of the used cave space is `0x00450d7f`. If you need a new cave, check the stock binary for zero-filled executable space above that address and claim the next block. Document the exact start and end in your patch README and in this file.

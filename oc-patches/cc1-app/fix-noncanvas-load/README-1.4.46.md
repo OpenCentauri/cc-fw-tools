@@ -10,6 +10,8 @@ The patch is deliberately conservative:
 - If the object is absent, the code returns a safe default instead of dereferencing null.
 - Only the final load-completion check treats a missing sensor as “loaded successfully.” This is scoped to that one state-machine decision so we do **not** globally pretend every absent switch is triggered.
 
+> **Note on M600 pause:** The `fix-noncanvas-load` patch only guards sensor-null reads; it does not change temperature or M104/M109 handling. The M600 load-filament hang / hotend-drop regression is handled separately by the `fix-m600-pause` patch, which injects `M104 S200` at the end of the M600 unload sequence.
+>
 Patch artifact:
 
 ```text
