@@ -82,12 +82,14 @@ boot() {
         sh -c "while [ 1 ]; do updatedb; sleep 86400; done" &
 
         # Synchronize time to NTP, and every 24 hours!
-        sh -c 'while true; do
-            until /usr/sbin/ntpdate pool.ntp.org; do
-                sleep 5
-            done
-            sleep 86400
-        done'
+        # ponytail: backgrounded so boot() can return; sleeps first so WiFi/DHCP wins race
+        sh -c 'sleep 30
+            while true; do
+                until /usr/sbin/ntpdate -u pool.ntp.org >/tmp/ntpdate.log 2>&1; do
+                    sleep 5
+                done
+                sleep 86400
+            done' &
 
     fi
 }
