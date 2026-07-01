@@ -20,8 +20,8 @@ Generated against the stock 1.4.46 app binary:
 
 ```text
 stock app sha256: ae693f7dc096da1f734c2972694963286cba20dc8f6afac79f8468139b613129
-patched app sha256: f7277b10ad2b4e610a0eb7fe073196f9f6f2de6d3d998808e64390d9b9dab6c9
-bsdiff sha256: 6659afe20fce51445051c213846525a3902146b27c4fe7804d2f28874ef55f74
+patched app sha256: 7009bf28db12b87782efcb7da40ce302dbeb478d8b2cf188ac9575ab6c425a1f
+bsdiff sha256: 274566704f06f95e5d886a982cee486fdbae380189c30d217d6cfacd082dbda5
 ```
 
 ## Why this patch exists
@@ -157,7 +157,13 @@ A later read assumes the object still exists:
 
 That is less likely to crash for a simply absent non-Canvas config because the first check skips the block, but it is the same unsafe pattern if the object table changes or an adjacent path reaches `sub_210fc8(NULL)`.
 
-**Patch behavior:** globally guard `sub_210fc8`. Missing generic switch sensor returns `0x0000`, a harmless “not triggered / not active” default. This protects unload/cut paths and other similar unguarded switch-reader calls without changing real Canvas sensors.
+**Patch behavior:** globally guard `sub_210fc8`. Missing generic switch sensor returns `0x0000`, a harmless "not triggered / not active" default. This protects unload/cut paths and other similar unguarded switch-reader calls without changing real Canvas sensors.
+
+### Case 5: Load retry loop reverses on non-Canvas after a previous operation
+
+On original / non-Canvas hardware, `ELEGOO_LOAD_FILAMENT_RETRY` (`sub_13ac84`) can enter a state where the retry loop emits `G1 E-20` (reverse) instead of forward `G1 E2`. This happens after an operation such as an unload or print leaves a stale plug-detection timestamp in the `[plug_detect_sensor]` object at offset `0x50`. The retry loop compares that timestamp to the current time and, when it falls inside the "plug detected" window, it issues the reverse `G1 E-20` unclog move. The real non-Canvas toolhead has no plug-detection hardware, so the timestamp is stale state, not a real jam.
+
+**Patch behavior:** hook the entry of `ELEGOO_LOAD_FILAMENT_RETRY`. If the non-Canvas hallmark (`[filament_switch_sensor]` at index `0x8c`) is missing, clear the `[plug_detect_sensor]` timestamp at offset `0x50` (and `0x54`) before the retry loop runs. Canvas systems, which have a real `[filament_switch_sensor]`, keep the original plug-detection behavior intact.
 
 ## What is patched
 
@@ -270,6 +276,39 @@ Trampoline:
 0x0045013c  beq   0x0013b134
 0x00450140  bl    0x00210fc8
 0x00450144  b     0x0013b134
+```
+
+### Hook 5: clear stale plug-detect state at the start of `ELEGOO_LOAD_FILAMENT_RETRY`
+
+Original:
+
+```asm
+0x0013ac84  push {r4, r5, r6, r7, r8, r9, sl, fp, lr}
+```
+
+Patched:
+
+```asm
+0x0013ac84  b 0x00450148
+```
+
+Trampoline:
+
+```asm
+0x00450148  movw  r1, #0x1034
+0x0045014c  movt  r1, #0x004b
+0x00450150  ldr   r1, [r1]                ; data_4b1034
+0x00450154  ldr   r2, [r1, #0x230]        ; [filament_switch_sensor]
+0x00450158  cmp   r2, #0
+0x0045015c  bne   0x00450178              ; Canvas -> skip reset
+0x00450160  ldr   r2, [r1, #0x250]        ; [plug_detect_sensor]
+0x00450164  cmp   r2, #0
+0x00450168  beq   0x00450178              ; no sensor -> skip reset
+0x0045016c  mov   r3, #0
+0x00450170  str   r3, [r2, #0x50]
+0x00450174  str   r3, [r2, #0x54]
+0x00450178  push  {r4, r5, r6, r7, r8, r9, sl, fp, lr}
+0x0045017c  b     0x0013ac88
 ```
 
 ## Why Canvas behavior should remain intact

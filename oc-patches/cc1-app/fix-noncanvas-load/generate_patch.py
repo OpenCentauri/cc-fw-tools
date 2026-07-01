@@ -18,7 +18,7 @@ EXPECTED_SIZE = 4_787_332
 EXPECTED_SHA256 = "ae693f7dc096da1f734c2972694963286cba20dc8f6afac79f8468139b613129"
 
 # Executable zero-filled cave in the first RX PT_LOAD segment, inside .rodata.
-# The first 128 bytes here are zero in the stock 1.4.46 app. We only need 72.
+# The first 128 bytes here are zero in the stock 1.4.46 app. We now use all of them.
 CODE_CAVE_VA = 0x00450100
 CODE_CAVE_OFF = CODE_CAVE_VA - BASE_VADDR
 CODE_CAVE_SIZE = 0x80
@@ -51,14 +51,41 @@ def arm_bl(src_va: int, dst_va: int) -> int:
     return 0xEB000000 | (imm & 0x00FFFFFF)
 
 
+def arm_movw(reg: int, imm16: int, cond: int = 0xE) -> int:
+    return (
+        (cond << 28)
+        | 0x03000000
+        | ((imm16 & 0xF000) << 4)
+        | (reg << 12)
+        | (imm16 & 0x0FFF)
+    )
+
+
+def arm_movt(reg: int, imm16: int, cond: int = 0xE) -> int:
+    return (
+        (cond << 28)
+        | 0x03400000
+        | ((imm16 & 0xF000) << 4)
+        | (reg << 12)
+        | (imm16 & 0x0FFF)
+    )
+
+
 # Raw ARM opcodes used by the patch.
 CMP_R0_0 = 0xE3500000
 BXEQ_LR = 0x012FFF1E
 PUSH_R4_R5_LR = 0xE92D4030
 PUSH_R4_LR = 0xE92D4010
+PUSH_R4_R11_LR = 0xE92D4FF0
 LDRB_R3_R0_0X3C = 0xE5D0303C
 LDR_R0_R3_0X230 = 0xE5930230
+LDR_R1_R1_0 = 0xE5911000
+LDR_R2_R1_0X230 = 0xE5912230
+LDR_R2_R1_0X250 = 0xE5912250
+STR_R3_R2_0X50 = 0xE5823050
+STR_R3_R2_0X54 = 0xE5823054
 MOV_R0_1 = 0xE3A00001
+MOV_R3_0 = 0xE3A03000
 MOVEQ_R0_1 = 0x03A00001
 NOP = 0xE320F000
 
@@ -115,6 +142,35 @@ def build_trampolines() -> bytes:
     emit(arm_bl(pc, 0x00210FC8))                     # 0x450140 call guarded generic reader
     emit(arm_b(pc, 0x0013B134))                      # 0x450144 resume after original bl
 
+    # oc_reset_plug_state_on_noncanvas @ 0x450148
+    # Hook at the start of ELEGOO_LOAD_FILAMENT_RETRY (sub_13ac84). When the
+    # final [filament_switch_sensor] is absent (non-Canvas), the plug-detect
+    # timestamp at [plug_detect_sensor + 0x50] can be stale from a previous
+    # operation and cause the retry loop to emit reverse G1 E-20 moves. Clear
+    # that timestamp at the start of a load so the loop starts clean. Canvas
+    # (filament_switch_sensor present) is untouched.
+    #
+    # r0 is arg1 and must be preserved. r1-r3 are scratch.
+    # Layout below is hand-counted so the conditional branches and the final
+    # b 0x13ac88 land correctly.
+    RESET_VA = CODE_CAVE_VA + 0x48
+    assert pc == RESET_VA, f"reset trampoline offset mismatch: {pc:#x}"
+    emit(arm_movw(1, 0x1034))                        # r1 = &data_4b1034
+    emit(arm_movt(1, 0x004B))
+    emit(LDR_R1_R1_0)                                # ldr r1, [r1] -> data_4b1034
+    emit(LDR_R2_R1_0X230)                            # ldr r2, [r1, #0x230] ; [filament_switch_sensor]
+    emit(CMP_R0_0)                                   # cmp r2, #0
+    emit(arm_b(pc, RESET_VA + 0x30, cond=0x1))      # bne .Lresume (Canvas, skip reset)
+    emit(LDR_R2_R1_0X250)                            # ldr r2, [r1, #0x250] ; [plug_detect_sensor]
+    emit(CMP_R0_0)                                   # cmp r2, #0
+    emit(arm_b(pc, RESET_VA + 0x30, cond=0x0))      # beq .Lresume (no sensor, skip)
+    emit(MOV_R3_0)                                   # mov r3, #0
+    emit(STR_R3_R2_0X50)                             # str r3, [r2, #0x50]
+    emit(STR_R3_R2_0X54)                             # str r3, [r2, #0x54]
+    # .Lresume:
+    emit(PUSH_R4_R11_LR)                             # push {r4-r11, lr} original @ 0x13ac84
+    emit(arm_b(pc, 0x0013AC88))                     # resume after original push
+
     blob = b"".join(u32(w) for w in words)
     if len(blob) > CODE_CAVE_SIZE:
         raise AssertionError(f"trampolines too large: {len(blob)} > {CODE_CAVE_SIZE}")
@@ -145,6 +201,15 @@ def patch_app(src: Path, dst: Path) -> None:
     # Replace final load-completion ldr/bl pair with trampoline branch + NOP.
     patch_word(data, 0x0013B12C, arm_b(0x0013B12C, 0x00450130), bytes.fromhex("300293e5"))
     patch_word(data, 0x0013B130, NOP, bytes.fromhex("a45703eb"))
+
+    # Hook into ELEGOO_LOAD_FILAMENT_RETRY (sub_13ac84) to clear stale
+    # plug_detect_sensor state on non-Canvas before the retry loop runs.
+    patch_word(
+        data,
+        0x0013AC84,
+        arm_b(0x0013AC84, 0x00450148),
+        bytes.fromhex("f04f2de9"),
+    )
 
     dst.write_bytes(data)
 
