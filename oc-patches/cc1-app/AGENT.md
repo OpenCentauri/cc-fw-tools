@@ -13,8 +13,9 @@ The 1.4.46 app binary uses four **injected code caves** (new trampolines written
 | `0x00450a00` | `report-filament-usage` | 0xc4 bytes | `0x00450ac3` |
 | `0x00450b00` | `fix-end-print-hang` | 0x80 bytes reserved, 0x44 used | `0x00450b7f` |
 | `0x00450c00` | `fix-end-print-hang` command string | 0x40 bytes reserved | `0x00450c3f` |
+| `0x00450e00` | `spoof-slicer-firmware-version` version string | 7 bytes | `0x00450e06` |
 
-There are **no other code caves** in the current 1.4.46 patch set. The next available zero-filled region after `0x00450c3f` is unallocated; any new patch needing a cave should claim from there and document it here.
+There are **no other code caves** in the current 1.4.46 patch set. The next available zero-filled region after `0x00450e06` is unallocated; any new patch needing a cave should claim from there and document it here. Note: `0x00450c40` and `0x00450d00` are reserved by an in-progress `fix-m600-pause` patch.
 
 ## Patch-by-Patch Breakdown
 
@@ -98,6 +99,15 @@ There are **no other code caves** in the current 1.4.46 patch set. The next avai
 **Type:** In-place binary patch
 - `0x00341700`, `0x0034b8c4`, `0x0034b8dc`, `0x0034be8c`, `0x0034bfac`
 **No cave used.**
+
+### `spoof-slicer-firmware-version` (1.4.46)
+**Type:** In-place pointer repoint + data string cave
+**Cave:** `0x00450e00` — `0x00450e06` (`1.4.46\0`)
+**In-place patches:**
+- `0x0035859c` (`VA 0x0036859c`): `movw r3, #0x9a38; movt r3, #0x40` → `movw r3, #0x0e00; movt r3, #0x45`
+- `0x0035a98c` (`VA 0x0036a98c`): same instruction change
+- `0x0036e80c` (`VA 0x0037e80c`): same instruction change
+**Purpose:** Reports `1.4.46` to the slicer via UDP discovery, WebSocket attribute topic, and direct request-attribute responses, while leaving the real version string at `0x00409a38` (logs/UI/OTA) untouched.
 
 ### `set-firmware-version-patch`
 **Enabled for 1.1.40 and 1.4.46.** Replaces the stock firmware version string in `app/app` with the OpenCentauri git-describe version.

@@ -1,0 +1,3 @@
+id = "spoof_slicer_firmware_version"
+name = "Spoof firmware version reported to ElegooSlicer via SDCP attributes"
+compatible_versions = ["1.4.46"]
