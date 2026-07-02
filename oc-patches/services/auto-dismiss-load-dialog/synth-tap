@@ -1,0 +1,67 @@
+#!/opt/bin/bash
+# synth-tap — synthesize a single touchscreen tap on /dev/input/event1.
+#
+# Centauri Carbon's Goodix gt9xxnew_ts driver speaks Linux multitouch
+# protocol type A.  A tap is just two bursts of events written to the
+# input device: a "down" packet describing where the finger landed,
+# followed ~150 ms later by an "up" packet.
+#
+# Usage: synth-tap [X] [Y]
+#        defaults: 289 182  (the "OK" button on the load-complete dialog)
+
+set -eu
+
+X=${1:-289}
+Y=${2:-182}
+DEV=/dev/input/event1
+
+# Codes from <linux/input-event-codes.h> on this kernel
+readonly EV_SYN=0
+readonly EV_KEY=1
+readonly EV_ABS=3
+readonly SYN_REPORT=0
+readonly SYN_MT_REPORT=2
+readonly BTN_TOUCH=$((0x14a))
+readonly ABS_MT_TOUCH_MAJOR=$((0x30))
+readonly ABS_MT_WIDTH_MAJOR=$((0x32))
+readonly ABS_MT_POSITION_X=$((0x35))
+readonly ABS_MT_POSITION_Y=$((0x36))
+readonly ABS_MT_TRACKING_ID=$((0x39))
+
+# Encode one input_event as 32 hex chars (16 bytes, little-endian):
+# struct input_event {
+#     __u32 tv_sec;     # 4 bytes
+#     __u32 tv_usec;    # 4 bytes  (kernel rewrites these on input, zeros are fine)
+#     __u16 type;       # 2 bytes
+#     __u16 code;       # 2 bytes
+#     __s32 value;      # 4 bytes
+# }; total 16 bytes
+ev_hex() {
+    local typ=$1 code=$2 val=$3
+    local uval=$(( val & 0xFFFFFFFF ))   # mask to unsigned 32 (handles negatives too)
+    printf '0000000000000000%02x%02x%02x%02x%02x%02x%02x%02x' \
+        $(( typ        & 0xff )) $(( (typ  >> 8) & 0xff )) \
+        $(( code       & 0xff )) $(( (code >> 8) & 0xff )) \
+        $(( uval       & 0xff )) $(( (uval >> 8) & 0xff )) \
+        $(( (uval >> 16) & 0xff )) $(( (uval >> 24) & 0xff ))
+}
+
+# DOWN burst — one open/write cycle
+{
+    ev_hex $EV_KEY $BTN_TOUCH         1
+    ev_hex $EV_ABS $ABS_MT_POSITION_X "$X"
+    ev_hex $EV_ABS $ABS_MT_POSITION_Y "$Y"
+    ev_hex $EV_ABS $ABS_MT_TOUCH_MAJOR 20
+    ev_hex $EV_ABS $ABS_MT_WIDTH_MAJOR 20
+    ev_hex $EV_ABS $ABS_MT_TRACKING_ID 0
+    ev_hex $EV_SYN $SYN_MT_REPORT     0
+    ev_hex $EV_SYN $SYN_REPORT        0
+} | xxd -r -p > "$DEV"
+
+sleep 0.15
+
+# UP burst — recorded sequence shows just BTN_TOUCH=0 + SYN_REPORT
+{
+    ev_hex $EV_KEY $BTN_TOUCH 0
+    ev_hex $EV_SYN $SYN_REPORT 0
+} | xxd -r -p > "$DEV"
