@@ -1,0 +1,4 @@
+id = "add-mesh-visualizer"
+name = "Add Mesh Visualizer"
+after = ["base"]
+compatible_versions = ["*"]

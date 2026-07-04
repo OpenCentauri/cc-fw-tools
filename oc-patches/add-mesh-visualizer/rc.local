@@ -1,0 +1,3 @@
+if [ ! -e /app/resources/www/printer.cfg ]; then
+    ln -s /board-resource/printer.cfg /app/resources/www/printer.cfg
+fi
