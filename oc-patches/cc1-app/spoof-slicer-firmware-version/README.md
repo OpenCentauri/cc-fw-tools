@@ -52,4 +52,4 @@ arm-none-eabi-objdump ... --start-address=0x36a98c --stop-address=0x36a994
 arm-none-eabi-objdump ... --start-address=0x37e80c --stop-address=0x37e814
 ```
 
-All three should show `movw r3, #0x0c40` / `movt r3, #0x45`.
+All three should show `movw r3, #0x0e00` / `movt r3, #0x45`.
