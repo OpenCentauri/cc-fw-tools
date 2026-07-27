@@ -1,0 +1,18 @@
+# Offsets are file offsets (base VA 0x10000). Format: 0xOFFSET 0xLENGTH
+0x2B81F8 0x8    # bowden_len_double (double @ 0x2C81F8 VA)
+0x35D7C2 0x2    # bed_mesh_temp_digits ("M190 S60" -> "SXX")
+0x34F6E8 0x11   # fw_version_string
+0x2D26E4 0x28   # api_busy_check
+0x2C6A90 0x4    # api_fan_speed_check
+0x2842B9 0x57   # z_offset_allow_block
+0x08E978 0x3B   # chamber_light
+0x08EA30 0x3B   # chamber_light
+0x2BB54C 0x4    # TODO - discover
+0x2BBB14 0x4    # TODO - discover
+0x155A30 0x4    # TEMPERATURE_WAIT hook: bl -> b 0x00391EC0
+0x381EC0 0xD8   # TEMPERATURE_WAIT new assembly: 0x00391EC0–0x00391F94
+0x1DEB18 0x4    # PrintStats JSON hook (branch to 0x00392680)
+0x1DEB20 0x4    # PrintStats JSON hook clobber space
+0x3825A0 0x33   # Total filament usage hex key string
+0x382630 0x2D   # Current delta filament usage hex key string
+0x382680 0xC8   # PrintStats filament-reporting instructions (0x00392680–0x00392747)
