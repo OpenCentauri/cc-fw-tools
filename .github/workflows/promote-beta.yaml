@@ -31,7 +31,12 @@ jobs:
         run: |
           VERSION="v0.0.0"
           TITLE="${VERSION} - beta pre-release, do not install unless instructed"
-          NOTES="Latest beta build from run ${{ github.event.inputs.run_id }} — commit ${{ github.sha }}"
+          NOTES=$(cat <<EOF
+          Latest beta build from run ${{ github.event.inputs.run_id }} — commit ${{ github.sha }}
+
+          $(cat patches.md)
+          EOF
+          )
 
           if gh release view "${VERSION}" >/dev/null 2>&1; then
             echo "Release ${VERSION} exists; updating target, title, and notes."
@@ -49,5 +54,5 @@ jobs:
               --prerelease
           fi
 
-          # Upload (or overwrite) update.swu to the v0.0.0 release
-          gh release upload "${VERSION}" update.swu --clobber
+          # Upload (or overwrite) the firmware, provenance manifest, and patch summary
+          gh release upload "${VERSION}" update.swu manifest.json patches.md --clobber
