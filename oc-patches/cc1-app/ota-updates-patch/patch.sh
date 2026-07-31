@@ -15,6 +15,8 @@ if [ "$FW_VER" = "1.1.40" ]; then
   bsdiff_file="oc-ota-updates-1.1.40.bsdiff"
 elif [ "$FW_VER" = "1.4.46" ]; then
   bsdiff_file="oc-ota-updates-1.4.46.bsdiff"
+elif [ "$FW_VER" = "1.4.49" ]; then
+  bsdiff_file="oc-ota-updates-1.4.49.bsdiff"
 else
   echo "Unsupported firmware version for OTA updates patch: $FW_VER"
   exit 1
