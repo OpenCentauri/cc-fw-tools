@@ -14,6 +14,7 @@ if not REPOSITORY_ROOT:
 VERSION_OFFSETS = {
     "1.1.40": (0x34F6E8, b"1.1.40"),
     "1.4.46": (0x003F9A38, b"1.4.46"),
+    "1.4.49": (0x003FAE10, b"1.4.49"),
 }
 
 def extract_commit() -> str:
