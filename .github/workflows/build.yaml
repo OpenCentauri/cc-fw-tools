@@ -9,7 +9,7 @@ on:
       - main
 
 env:
-  FW_VER: 1.4.46
+  FW_VER: 1.4.49
 
 permissions:
   contents: write
