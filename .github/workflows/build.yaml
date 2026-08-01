@@ -52,7 +52,8 @@ jobs:
       #     ./build.sh $FW_VER
       #     cp ./update/update.swu klipper-pi.swu
       
-      - uses: actions/upload-artifact@v4
+      - id: upload_firmware
+        uses: actions/upload-artifact@v4
         with:
           name: CC1 Firmware
           path: |
@@ -70,8 +71,27 @@ jobs:
             const fs = require('fs');
             const marker = '<!-- opencentauri-patch-summary -->';
             const summary = fs.readFileSync('patches.md', 'utf8');
-            const body = `${marker}\n${summary}`;
             const { owner, repo } = context.repo;
+            const runId = context.runId;
+            const artifactId = process.env.ARTIFACT_ID;
+            const artifactUrl = artifactId
+              ? `https://github.com/${owner}/${repo}/actions/runs/${runId}/artifacts/${artifactId}`
+              : `https://github.com/${owner}/${repo}/actions/runs/${runId}/artifacts`;
+            const nightlyUrl = `https://nightly.link/${owner}/${repo}/actions/runs/${runId}/CC1%20Firmware.zip`;
+            const body = `${marker}
+            ## PR build artifact
+
+            - [Download the CC1 Firmware artifact](${artifactUrl})
+            - Flash this exact build from an OpenCentauri printer shell:
+              \`\`\`sh
+              flash-artifact ${nightlyUrl}
+              \`\`\`
+
+            ## Firmware patches included
+
+            ${summary}
+
+            Please provide feedback as comments in this PR or in the \`#patched-fw\` channel on Discord.`;
             const issue_number = context.issue.number;
             const comments = await github.paginate(github.rest.issues.listComments, {
               owner,
@@ -97,3 +117,5 @@ jobs:
                 body,
               });
             }
+        env:
+          ARTIFACT_ID: ${{ steps.upload_firmware.outputs.artifact-id }}
