@@ -1,4 +1,4 @@
 id = "add_chamber_light_gcode"
 name = "Add gcode commands to control chamber light"
 after = ["base"]
-compatible_versions = ["1.1.40", "1.4.46"]
+compatible_versions = ["1.1.40", "1.4.46", "1.4.49"]
