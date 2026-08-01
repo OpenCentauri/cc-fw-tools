@@ -35,7 +35,7 @@ def main() -> None:
         f"- Branch: `{build['branch']}`",
         f"- Commit: `{build['commit']}`",
         "",
-        "## Patches applied (TY Sims!!!)",
+        "## Patches applied (TY Sims!)",
         "",
     ])
 
