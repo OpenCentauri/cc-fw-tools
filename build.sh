@@ -61,7 +61,11 @@ fi
 echo
 
 echo "Patching the firmware..."
-sudo python3 ./oc-patches/patch_planner.py "$VERSION" --patch-list "$PATCH_LIST"
+sudo env \
+    "OC_BUILD_BRANCH=${OC_BUILD_BRANCH:-}" \
+    "OC_BUILD_COMMIT=${OC_BUILD_COMMIT:-}" \
+    "OC_BUILD_DIRTY=${OC_BUILD_DIRTY:-}" \
+    python3 ./oc-patches/patch_planner.py "$VERSION" --patch-list "$PATCH_LIST"
 if [ $? -ne 0 ]; then
     echo "Error patching the firmware, aborting..."
     exit 1
@@ -80,7 +84,11 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "Creating update/manifest.json..."
-sudo python3 ./TOOLS/create_manifest.py \
+sudo env \
+    "OC_BUILD_BRANCH=${OC_BUILD_BRANCH:-}" \
+    "OC_BUILD_COMMIT=${OC_BUILD_COMMIT:-}" \
+    "OC_BUILD_DIRTY=${OC_BUILD_DIRTY:-}" \
+    python3 ./TOOLS/create_manifest.py \
     --original "$FIRMWARE_FILE" \
     --patch-list "$PATCH_LIST" \
     --final update/update.swu \
@@ -88,6 +96,15 @@ sudo python3 ./TOOLS/create_manifest.py \
     --repo-root "$project_root"
 if [ $? -ne 0 ]; then
     echo "Error creating the firmware manifest, aborting..."
+    exit 1
+fi
+echo "Naming final firmware artifact from manifest metadata..."
+sudo python3 ./TOOLS/finalize_firmware_artifact.py \
+    --manifest update/manifest.json \
+    --firmware update/update.swu \
+    --output-dir update
+if [ $? -ne 0 ]; then
+    echo "Error naming the final firmware artifact, aborting..."
     exit 1
 fi
 echo "Creating update/patches.md..."

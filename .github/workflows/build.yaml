@@ -12,6 +12,7 @@ env:
   FW_VER: 1.4.49
   OC_BUILD_BRANCH: ${{ github.head_ref || github.ref_name }}
   OC_BUILD_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+  OC_BUILD_DIRTY: false
 
 permissions:
   contents: write
@@ -42,7 +43,8 @@ jobs:
           rm ./oc-patches/patch_config
           cp ./firmware-editions/patched ./oc-patches/patch_config
           ./build.sh $FW_VER
-          cp ./update/update.swu update.swu
+          final_swu_path="$(python3 -c 'import json; print(json.load(open("update/manifest.json"))["final_firmware"]["path"])')"
+          cp "$final_swu_path" "$(basename "$final_swu_path")"
           cp ./update/manifest.json manifest.json
           cp ./update/patches.md patches.md
 
@@ -59,7 +61,7 @@ jobs:
         with:
           name: CC1 Firmware
           path: |
-            update.swu
+            update-*.swu
             manifest.json
             patches.md
             # klipper-pi.swu
@@ -84,7 +86,7 @@ jobs:
             ## PR build artifact
 
             - [Download the CC1 Firmware artifact](${artifactUrl})
-            - Flash this exact build from an OpenCentauri printer shell:
+            - Flash this exact build from an OpenCentauri patched printer running v0.4.0 or later:
               \`\`\`sh
               flash-artifact ${nightlyUrl}
               \`\`\`

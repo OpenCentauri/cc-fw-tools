@@ -2,6 +2,7 @@
 """Create a build-details manifest for a firmware update."""
 
 import argparse
+from datetime import datetime, timezone
 import hashlib
 import json
 import os
@@ -41,19 +42,23 @@ def git_metadata(repo_root: str) -> dict:
                 branch = "detached"
 
         commit = os.getenv("OC_BUILD_COMMIT") or git_output(repo_root, "rev-parse", "HEAD")
-        short_commit = git_output(repo_root, "rev-parse", "--short=12", commit)
+        short_commit = git_output(repo_root, "rev-parse", "--short=7", commit)
 
-        # Restrict the diff pathspec to files present in HEAD. This detects
-        # staged and unstaged changes to tracked files while ignoring all
-        # untracked files, including staged additions.
-        tracked_files = git_output(repo_root, "ls-tree", "-r", "--name-only", "HEAD").splitlines()
-        dirty = subprocess.run(
-            ["git", "-C", repo_root, "diff", "--quiet", "HEAD", "--", *tracked_files],
-            check=False,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-            text=True,
-        ).returncode != 0
+        dirty_override = os.getenv("OC_BUILD_DIRTY")
+        if dirty_override:
+            dirty = dirty_override.lower() in {"1", "true", "yes", "y"}
+        else:
+            # Restrict the diff pathspec to files present in HEAD. This detects
+            # staged and unstaged changes to tracked files while ignoring all
+            # untracked files, including staged additions.
+            tracked_files = git_output(repo_root, "ls-tree", "-r", "--name-only", "HEAD").splitlines()
+            dirty = subprocess.run(
+                ["git", "-C", repo_root, "diff", "--quiet", "HEAD", "--", *tracked_files],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                text=True,
+            ).returncode != 0
     except subprocess.CalledProcessError as error:
         detail = error.stderr.strip() or "git metadata is unavailable"
         raise SystemExit(f"Error reading git metadata: {detail}") from error
@@ -61,7 +66,7 @@ def git_metadata(repo_root: str) -> dict:
     # Keep the version suitable for filenames and package metadata while
     # preserving the original branch name in the separate branch field.
     version_branch = re.sub(r"[^A-Za-z0-9._-]+", "-", branch).strip(".-") or "detached"
-    version = f"oc-{version_branch}-g{short_commit}"
+    version = f"oc-{version_branch}-{short_commit}"
     if dirty:
         version += "-dirty"
 
@@ -111,6 +116,9 @@ def main() -> None:
         },
         "build": build,
     }
+    manifest["build"]["completed_at"] = datetime.now(timezone.utc).strftime(
+        "%Y-%m-%d %H-%M-%S UTC"
+    )
 
     with open(args.output, "w") as file:
         json.dump(manifest, file, indent=2)

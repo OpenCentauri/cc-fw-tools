@@ -54,5 +54,10 @@ jobs:
               --prerelease
           fi
 
-          # Upload (or overwrite) the firmware, provenance manifest, and patch summary
-          gh release upload "${VERSION}" update.swu manifest.json patches.md --clobber
+          # Upload (or overwrite) the firmware, manifest, and patch summary.
+          swu_path="$(find . -maxdepth 1 -type f -name '*.swu' -print -quit)"
+          if [ -z "$swu_path" ]; then
+            echo "No firmware .swu artifact was downloaded"
+            exit 1
+          fi
+          gh release upload "${VERSION}" "$swu_path" manifest.json patches.md --clobber

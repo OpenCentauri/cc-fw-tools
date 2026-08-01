@@ -23,6 +23,7 @@ def main() -> None:
     if build.get("firmware_version"):
         lines.append(f"- Firmware version: `{build['firmware_version']}`")
     lines.extend([
+        f"- Build complete time: `{build.get('completed_at', 'Unknown')}`",
         f"- Original firmware: `{original['file_name']}`",
         f"- Original SHA-256: `{original['sha256']}`",
         f"- Final firmware: `{final['file_name']}`",
@@ -34,7 +35,7 @@ def main() -> None:
         f"- Branch: `{build['branch']}`",
         f"- Commit: `{build['commit']}`",
         "",
-        "## Patches applied",
+        "## Patches applied (TY Sims!!!)",
         "",
     ])
 
