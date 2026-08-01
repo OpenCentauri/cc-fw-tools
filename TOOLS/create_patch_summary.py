@@ -19,21 +19,24 @@ def main() -> None:
     build = manifest["build"]
     patches = manifest["patches"]
 
-    lines = [
-        "# OpenCentauri Firmware Patch Summary",
-        "",
-        f"- Build version: `{build['version']}`",
-        f"- Branch: `{build['branch']}`",
-        f"- Commit: `{build['commit']}`",
-        f"- Dirty tracked files: `{str(build['dirty']).lower()}`",
+    lines = ["# OpenCentauri Firmware Build", ""]
+    if build.get("firmware_version"):
+        lines.append(f"- Firmware version: `{build['firmware_version']}`")
+    lines.extend([
         f"- Original firmware: `{original['file_name']}`",
         f"- Original SHA-256: `{original['sha256']}`",
         f"- Final firmware: `{final['file_name']}`",
         f"- Final SHA-256: `{final['sha256']}`",
         "",
+        "## Build metadata",
+        "",
+        f"- Build version: `{build['version']}`",
+        f"- Branch: `{build['branch']}`",
+        f"- Commit: `{build['commit']}`",
+        "",
         "## Patches applied",
         "",
-    ]
+    ])
 
     if patches:
         lines.extend([

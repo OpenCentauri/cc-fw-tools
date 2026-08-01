@@ -7,6 +7,10 @@ import json
 import os
 import re
 import subprocess
+import sys
+
+sys.path.insert(0, os.path.dirname(__file__))
+from firmware_version import firmware_version
 
 
 def sha256(path: str) -> str:
@@ -29,12 +33,15 @@ def git_output(repo_root: str, *args: str) -> str:
 
 def git_metadata(repo_root: str) -> dict:
     try:
-        try:
-            branch = git_output(repo_root, "symbolic-ref", "--quiet", "--short", "HEAD")
-        except subprocess.CalledProcessError:
-            branch = "detached"
-        commit = git_output(repo_root, "rev-parse", "HEAD")
-        short_commit = git_output(repo_root, "rev-parse", "--short=12", "HEAD")
+        branch = os.getenv("OC_BUILD_BRANCH")
+        if not branch:
+            try:
+                branch = git_output(repo_root, "symbolic-ref", "--quiet", "--short", "HEAD")
+            except subprocess.CalledProcessError:
+                branch = "detached"
+
+        commit = os.getenv("OC_BUILD_COMMIT") or git_output(repo_root, "rev-parse", "HEAD")
+        short_commit = git_output(repo_root, "rev-parse", "--short=12", commit)
 
         # Restrict the diff pathspec to files present in HEAD. This detects
         # staged and unstaged changes to tracked files while ignoring all
@@ -58,12 +65,13 @@ def git_metadata(repo_root: str) -> dict:
     if dirty:
         version += "-dirty"
 
-    return {
+    metadata = {
         "version": version,
         "branch": branch,
         "commit": commit,
         "dirty": dirty,
     }
+    return metadata
 
 
 def main() -> None:
@@ -82,6 +90,13 @@ def main() -> None:
     with open(args.patch_list) as file:
         patches = json.load(file)
 
+    build = git_metadata(args.repo_root)
+    if any(patch["id"] == "set_firmware_version" for patch in patches):
+        try:
+            build["firmware_version"] = firmware_version(args.repo_root)
+        except subprocess.CalledProcessError:
+            build["firmware_version"] = "Unknown-oc"
+
     manifest = {
         "manifest_version": 1,
         "original_firmware": {
@@ -94,7 +109,7 @@ def main() -> None:
             "path": args.final,
             "sha256": sha256(args.final),
         },
-        "build": git_metadata(args.repo_root),
+        "build": build,
     }
 
     with open(args.output, "w") as file:
