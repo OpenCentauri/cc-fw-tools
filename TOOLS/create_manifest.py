@@ -117,7 +117,7 @@ def main() -> None:
         "build": build,
     }
     manifest["build"]["completed_at"] = datetime.now(timezone.utc).strftime(
-        "%Y-%m-%d %H-%M-%S UTC"
+        "%Y-%m-%d %H:%M:%S UTC"
     )
 
     with open(args.output, "w") as file:

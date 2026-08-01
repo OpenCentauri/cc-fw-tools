@@ -40,10 +40,10 @@ def main() -> None:
         raise SystemExit("Error: manifest is missing build.completed_at")
 
     try:
-        completed = datetime.strptime(completed_at, "%Y-%m-%d %H-%M-%S UTC")
+        completed = datetime.strptime(completed_at, "%Y-%m-%d %H:%M:%S UTC")
     except ValueError as error:
         raise SystemExit(
-            "Error: build.completed_at must use YYYY-MM-DD HH-MM-SS UTC"
+            "Error: build.completed_at must use YYYY-MM-DD HH:MM:SS UTC"
         ) from error
 
     firmware_version = build.get("firmware_version") or build.get("version")
