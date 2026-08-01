@@ -19,10 +19,13 @@ def _git(repo_root: str, *args: str) -> str:
 def firmware_version(repo_root: str) -> str:
     """Return the OpenCentauri firmware version for the build commit."""
     # Integration branches named vX.Y.Z-integrate are pre-release dev lines:
-    # report X.Y.Z-beta-<sha> instead of the last release tag. GITHUB_REF_NAME
-    # covers CI (detached HEAD); fall back to the local branch name.
-    branch = os.getenv("GITHUB_REF_NAME") or _git(
-        repo_root, "rev-parse", "--abbrev-ref", "HEAD"
+    # report X.Y.Z-beta-<sha> instead of the last release tag. OC_BUILD_BRANCH
+    # is passed through the sudo env chain by build.sh; GITHUB_REF_NAME covers
+    # unsudoed CI steps; fall back to the local branch name.
+    branch = (
+        os.getenv("OC_BUILD_BRANCH")
+        or os.getenv("GITHUB_REF_NAME")
+        or _git(repo_root, "rev-parse", "--abbrev-ref", "HEAD")
     )
     m = re.fullmatch(r"v?(\d+\.\d+\.\d+)-integrate", branch)
     if m:
