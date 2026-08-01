@@ -1,4 +1,4 @@
 id = "home_position_front_right"
 name = "Set home position to front right"
-compatible_versions = ["1.1.40", "1.4.46"]
+compatible_versions = ["1.1.40", "1.4.46", "1.4.49"]
 after = ["base"]
