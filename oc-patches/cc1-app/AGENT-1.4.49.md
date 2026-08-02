@@ -4,11 +4,13 @@
 
 ## Executive Summary
 
-The 1.4.49 app binary currently uses **no injected code caves**. All current patches are **in-place patches** (existing function bodies rewritten, single instructions, or data strings). If a future 1.4.49 patch needs a cave, claim zero-filled executable space and document it here before generating the bsdiff.
+The 1.4.49 app binary uses one **string cave** (data only, no code injection); all other patches are **in-place patches** (existing function bodies rewritten, single instructions, or data strings). Claim zero-filled space in the table below before generating any patch that needs one.
 
 | Cave Address | Used By | Size | End |
 |--------------|---------|------|-----|
-| *(none claimed yet)* | | | |
+| `0x004517e0` | `spoof_slicer_firmware_version` (spoofed `"1.4.49\0"` string) | 8 bytes | `0x004517e7` |
+
+(0x004517e0 sits in a ~2KB zero run in `.rodata` ending `0x00451fb8`; the remainder is unclaimed. NOTE: the 1.4.46 cave `0x00450e00` is OCCUPIED in 1.4.49 — never reuse 1.4.46 cave addresses without checking.)
 
 ## Patch-by-Patch Breakdown
 
@@ -41,6 +43,16 @@ The 1.4.49 app binary currently uses **no injected code caves**. All current pat
 ### `misc-app-patch` (1.4.49)
 **Type:** Rootfs/config patch (rc.local, boot logo, `update-printer-cfg.py`)
 **No binary cave used.**
+
+### `spoof-slicer-firmware-version` (1.4.49)
+**Type:** Python direct binary patch (`patch.py`, byte-guarded; refuses on mismatch)
+- Repoints the version-string source in the three SDCP `FirmwareVersion` paths from `0x0040ae10` to the string cave `0x004517e0`:
+  - UDP discovery responder: site `0x00369974` (file `0x00359974`)
+  - WebSocket/MQTT attributes: site `0x0036bd64` (file `0x0035bd64`)
+  - Direct request-attribute: site `0x0037fbe4` (file `0x0036fbe4`)
+- Guard bytes (all three sites): `103e0ae3 403040e3` → new bytes `e03701e3 453040e3` (`movw r3,#0x17e0; movt r3,#0x45`).
+- Disjoint from `set-firmware-version`; write order does not matter. Slicer sees `1.4.49`, logs/UI/OTA keep the OC version.
+**String cave at `0x004517e0`.** See `spoof-slicer-firmware-version/README.md`.
 
 ## 1.4.49 Binary Notes
 
