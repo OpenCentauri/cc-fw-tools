@@ -1,4 +1,4 @@
 id = "upload_during_printing"
 name = "Fix file uploads during a print"
 after = ["base"]
-compatible_versions = ["1.1.40", "1.4.46"]
+compatible_versions = ["1.1.40", "1.4.46", "1.4.49"]

@@ -15,6 +15,9 @@ if [ "$FW_VER" = "1.1.40" ]; then
   bsdiff_file="allow-upload-patch-1.1.40.bsdiff"
 elif [ "$FW_VER" = "1.4.46" ]; then
   bsdiff_file="allow-upload-patch-1.4.46.bsdiff"
+elif [ "$FW_VER" = "1.4.49" ]; then
+  python3 "$CURRENT_PATCH_PATH/patch.py"
+  exit 0
 else
   echo "Unsupported firmware version for allow uploads during printing patch: $FW_VER"
   exit 1
