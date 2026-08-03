@@ -85,11 +85,12 @@ jobs:
             const body = `${marker}
             ## PR build artifact
 
-            - [Download the CC1 Firmware artifact](${artifactUrl})
+            - [Download the CC1 Firmware](${nightlyUrl})
             - Flash this exact build from an OpenCentauri patched printer running v0.4.0 or later:
               \`\`\`sh
               flash-artifact ${nightlyUrl}
               \`\`\`
+            - Artifact details (GitHub login required): <${artifactUrl}>
 
             ## Firmware patches included
 
