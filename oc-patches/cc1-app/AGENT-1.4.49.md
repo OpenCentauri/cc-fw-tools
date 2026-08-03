@@ -4,13 +4,16 @@
 
 ## Executive Summary
 
-The 1.4.49 app binary uses one **string cave** (data only, no code injection); all other patches are **in-place patches** (existing function bodies rewritten, single instructions, or data strings). Claim zero-filled space in the table below before generating any patch that needs one.
+The 1.4.49 app binary uses rodata zero runs as caves (the whole rodata sits in the **R-E LOAD segment**, so they hold code as well as data); the remaining patches are **in-place patches**. Claim zero-filled space in the table below before generating any patch that needs one.
 
 | Cave Address | Used By | Size | End |
 |--------------|---------|------|-----|
-| `0x004517e0` | `spoof_slicer_firmware_version` (spoofed `"1.4.49\0"` string) | 8 bytes | `0x004517e7` |
+| `0x004517e0` | `spoof_slicer_firmware_version` (spoofed version string) | 8 bytes | `0x004517e7` |
+| `0x004517f0` | `wait_for_chamber_temp` trampoline (code) | 216 bytes | `0x004518c8` |
+| `0x004518d0` | `report_filament_usage` injected fn (code) | 196 bytes | `0x00451994` |
+| `0x004519a0` | `report_filament_usage` key strings (data) | 34 bytes | `0x004519c1` |
 
-(0x004517e0 sits in a ~2KB zero run in `.rodata` ending `0x00451fb8`; the remainder is unclaimed. NOTE: the 1.4.46 cave `0x00450e00` is OCCUPIED in 1.4.49 — never reuse 1.4.46 cave addresses without checking.)
+(All in the ~2KB rodata zero run `0x004517e0`–`0x00451fb8`. `report_filament_usage` also uses bss state doubles at `0x004b4788`/`0x004b4790` — runtime-zero, no file backing. Remaining free: `0x004519c2`–`0x00451fb8` (~1.5KB), the `0x00451fe3` run (~2KB), and four ~240B `0x0044exxx` slots. NOTE: the 1.4.46 cave `0x00450e00` is OCCUPIED in 1.4.49 — never reuse 1.4.46 cave addresses without checking. File→VA bias is `+0x10000` below file `0x48ed08` and `+0x20000` in the RW LOAD.)
 
 ## Patch-by-Patch Breakdown
 
@@ -53,6 +56,40 @@ The 1.4.49 app binary uses one **string cave** (data only, no code injection); a
 - Guard bytes (all three sites): `103e0ae3 403040e3` → new bytes `e03701e3 453040e3` (`movw r3,#0x17e0; movt r3,#0x45`).
 - Disjoint from `set-firmware-version`; write order does not matter. Slicer sees `1.4.49`, logs/UI/OTA keep the OC version.
 **String cave at `0x004517e0`.** See `spoof-slicer-firmware-version/README.md`.
+
+### `allow-uploads-during-printing-patch` (1.4.49)
+**Type:** Python direct binary patch (`patch.py` via `patch.sh` FW_VER branch; two-pass byte-guarded)
+- NOPs the two busy-guard branches into the `device is busy,can't upload` error flow (`0x36b24c`) in the SDCP v3 HTTP handler `fcn.0036a5c8`:
+  - `0x0036acb4` `beq` → `nop`; `0x0036acdc` `bne` → `nop`
+**No cave used.** See `allow-uploads-during-printing-patch/README-1.4.49.md`.
+
+### `allow-api-during-printing-patch` (1.4.49)
+**Type:** Python direct binary patch (same runner pattern)
+- NOPs the single busy-guard `bne 0x371e3c` at `0x00371bd0` in the set-status API `fcn.00371b10` (`device is busy,can't set status`).
+**No cave used.** See `allow-api-during-printing-patch/README-1.4.49.md`.
+
+### `do-not-block-z-offset-adjust-patch` (1.4.49)
+**Type:** Python direct binary patch (same runner pattern)
+- `app_z_offset_callback` `fcn.0034cb60`: BTN_DOWN `0x0034cc44` `bl 0x342a78` → `b 0x34cc5c`; BTN_UP `0x0034d20c` `bl 0x342a78` → `b 0x34d32c` (skips the print-state condition entirely; same relative deltas as 1.1.40).
+**No cave used.** See `do-not-block-z-offset-adjust-patch/README-1.4.49.md`.
+
+### `disable-exhaust-fan-patch` (1.4.49)
+**Type:** Python direct binary patch (same runner pattern)
+- NOPs both entries into the exhaust-fan control block of the periodic handler `0x35e388`: `0x0035e920` `bne 0x35e9e8` → `nop`; `0x0035e938` `bne 0x35ea08` → `nop`.
+**No cave used.** See `disable-exhaust-fan-patch/README-1.4.49.md`.
+
+### `wait-for-chamber-temp` (1.4.49)
+**Type:** Hook + code cave trampoline (`patch.py` writes assembled blob from `trampoline-1.4.49.S`)
+- Hook `0x00177d88` `bl 0xed8d8` → `b 0x4517f0`; trampoline in cave `0x004517f0` (216B).
+- box path: `simple_bus_request` `0x2b874` for `srv_state` (`0x4440fc`), chamber double at state+0x48, wait loop `usleep(10000)` @ `0x1c544`, exit to epilogue `0x177f98`. MIN=d11 / MAX=d12 live at hook; SENSOR char* at handler `[sp+0x10]`.
+- **Fix vs 1.4.46:** non-box sensors re-execute the clock `bl 0xed8d8` and resume at `0x177d8c` (stock heater TEMPERATURE_WAIT works; 1.4.46 sent them to the epilogue).
+**Cave `0x004517f0`.** See `wait-for-chamber-temp/README-1.4.49.md`.
+
+### `report-filament-usage` (1.4.49)
+**Type:** Hook + code cave injected fn (`patch.py` writes assembled blob from `injected-1.4.49.S` + key strings)
+- Hook `0x0037f9ec` (12B movw/movt/vcvt triplet) → `movw ip,#0x18d0; movt ip,#0x45; bx ip`; fn in cave `0x004518d0` (196B).
+- Emits `TotalExtrusion` (key `0x4519a0`) + `CurrentExtrusion` (key `0x4519b0`) via JSON helper `0x2c9b80` (r0=json obj = r4 at hook); E total from `[[0x4b27bc]+0xf8]+0x1c0`; bss prev/delta at `0x4b4788`/`0x4b4790` (runtime-zero, no file backing); resume `0x37f9fc` (cave replays TotalLayer — no double-emit). Idle path `0x37f858` unhooked (parity).
+**Caves `0x004518d0` + `0x004519a0`; bss `0x4b4788`/`0x4b4790`.** See `report-filament-usage/README-1.4.49.md`.
 
 ## 1.4.49 Binary Notes
 
