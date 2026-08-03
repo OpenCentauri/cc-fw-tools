@@ -18,6 +18,10 @@ case "${FW_VER:?FW_VER is required}" in
   1.4.46)
     bsdiff_file="temp_wait_patch-1.4.46.bsdiff"
     ;;
+  1.4.49)
+    python3 "${CURRENT_PATCH_PATH:?}/patch.py"
+    exit 0
+    ;;
   *)
     echo "Unsupported firmware version for wait for chamber temp patch: $FW_VER" >&2
     exit 1
