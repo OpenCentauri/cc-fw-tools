@@ -41,6 +41,8 @@ elif [ "$FW_VER" = "1.4.44" ]; then
   kmod=ab1434
 elif [ "$FW_VER" = "1.4.46" ]; then
   kmod=ab1444
+elif [ "$FW_VER" = "1.4.49" ]; then
+  kmod=ab1455
 fi
 echo 'Add symlink for /lib/modules/ for new kernel ver 5.4.61-${kmod} (harmless for earlier revs)'
 [[ ! -z "$kmod" ]] && ln -sf 5.4.61 5.4.61-$kmod
