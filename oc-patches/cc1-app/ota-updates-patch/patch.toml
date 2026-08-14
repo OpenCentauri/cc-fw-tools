@@ -2,4 +2,4 @@ id = "ota_updates"
 name = "Implement OTA updates for OpenCentauri firmware"
 after = ["base"]
 requires = ["block_connectivity_check"]
-compatible_versions = ["1.1.40", "1.4.46"]
+compatible_versions = ["1.1.40", "1.4.46", "1.4.49"]

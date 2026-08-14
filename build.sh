@@ -11,8 +11,10 @@ source "$project_root/TOOLS/helpers/utils.sh" "$project_root"
 # --- Firmware Selection ---
 #DEFAULT_FW="FW/FW-CentauriCarbon-v1.1.25-2025-05-09.bin"
 #DEFAULT_FW="FW-CentauriCarbon-v1.1.40-2025-08-15.bin"
-[[ -z "$1" ]] && VERSION="1.4.46" || VERSION="$1"
+[[ -z "$1" ]] && VERSION="1.4.49" || VERSION="$1"
 FIRMWARE_FILE=""
+PATCH_LIST="$project_root/unpacked/.oc-patches-applied.json"
+sudo rm -f "$PATCH_LIST"
 
 if [ -n "$VERSION" ]; then
     # Argument provided, try to find a matching firmware file
@@ -59,9 +61,17 @@ fi
 echo
 
 echo "Patching the firmware..."
-sudo python3 ./oc-patches/patch_planner.py $VERSION
+sudo env \
+    "OC_BUILD_BRANCH=${OC_BUILD_BRANCH:-}" \
+    "OC_BUILD_COMMIT=${OC_BUILD_COMMIT:-}" \
+    "OC_BUILD_DIRTY=${OC_BUILD_DIRTY:-}" \
+    python3 ./oc-patches/patch_planner.py "$VERSION" --patch-list "$PATCH_LIST"
 if [ $? -ne 0 ]; then
     echo "Error patching the firmware, aborting..."
+    exit 1
+fi
+if [ ! -s "$PATCH_LIST" ]; then
+    echo "Error: Patching completed without producing a patch list, aborting..."
     exit 1
 fi
 echo
@@ -72,6 +82,40 @@ if [ $? -ne 0 ]; then
     echo "Error re-packing the firmware, aborting..."
     exit 1
 fi
+
+echo "Creating update/manifest.json..."
+sudo env \
+    "OC_BUILD_BRANCH=${OC_BUILD_BRANCH:-}" \
+    "OC_BUILD_COMMIT=${OC_BUILD_COMMIT:-}" \
+    "OC_BUILD_DIRTY=${OC_BUILD_DIRTY:-}" \
+    python3 ./TOOLS/create_manifest.py \
+    --original "$FIRMWARE_FILE" \
+    --patch-list "$PATCH_LIST" \
+    --final update/update.swu \
+    --output update/manifest.json \
+    --repo-root "$project_root"
+if [ $? -ne 0 ]; then
+    echo "Error creating the firmware manifest, aborting..."
+    exit 1
+fi
+echo "Naming final firmware artifact from manifest metadata..."
+sudo python3 ./TOOLS/finalize_firmware_artifact.py \
+    --manifest update/manifest.json \
+    --firmware update/update.swu \
+    --output-dir update
+if [ $? -ne 0 ]; then
+    echo "Error naming the final firmware artifact, aborting..."
+    exit 1
+fi
+echo "Creating update/patches.md..."
+sudo python3 ./TOOLS/create_patch_summary.py \
+    --manifest update/manifest.json \
+    --output update/patches.md
+if [ $? -ne 0 ]; then
+    echo "Error creating the patch summary, aborting..."
+    exit 1
+fi
+sudo rm -f "$PATCH_LIST"
 #echo "Packing the firmware into update/force_upgrade.bin..."
 #sudo ./fup.sh
 echo
