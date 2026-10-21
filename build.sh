@@ -85,6 +85,9 @@ fi
 
 echo "Creating update/manifest.json..."
 sudo env \
+    "GIT_CONFIG_COUNT=1" \
+    "GIT_CONFIG_KEY_0=safe.directory" \
+    "GIT_CONFIG_VALUE_0=$project_root" \
     "OC_BUILD_BRANCH=${OC_BUILD_BRANCH:-}" \
     "OC_BUILD_COMMIT=${OC_BUILD_COMMIT:-}" \
     "OC_BUILD_DIRTY=${OC_BUILD_DIRTY:-}" \
