@@ -41,6 +41,16 @@ jobs:
         with:
           path: artifacts
 
+      - name: Find patch summary
+        id: patch_summary
+        run: |
+          summary_path="$(find artifacts -type f -name patches.md -print -quit)"
+          if [ -z "$summary_path" ]; then
+            echo "patches.md was not found in the build artifacts"
+            exit 1
+          fi
+          echo "path=$summary_path" >> "$GITHUB_OUTPUT"
+
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v2
@@ -50,6 +60,7 @@ jobs:
           draft: ${{ github.event.inputs.draft || false }}
           prerelease: false
           generate_release_notes: true
+          body_path: ${{ steps.patch_summary.outputs.path }}
           files: artifacts/**/*
 
       - name: Attest Release

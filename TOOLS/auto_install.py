@@ -7,6 +7,7 @@ import os
 import sys
 import time
 import getpass
+import json
 
 # Create hostname, username, ip struct to save
 
@@ -33,9 +34,17 @@ def handle_progress(filename: bytes, size: int, sent: int):
     print(f'{filename.decode("utf-8")}: {sent/size*100:.2f}%')
 
 if __name__ == "__main__":
-    # Check if update/update.swu exists
-    if not os.path.exists('update/update.swu'):
-        print('update/update.swu not found')
+    firmware_path = 'update/update.swu'
+    if os.path.exists('update/manifest.json'):
+        try:
+            with open('update/manifest.json', encoding='utf-8') as file:
+                firmware_path = json.load(file)['final_firmware']['path']
+        except (KeyError, json.JSONDecodeError):
+            print('update/manifest.json does not contain a final firmware path')
+            sys.exit(1)
+
+    if not os.path.exists(firmware_path):
+        print(f'{firmware_path} not found')
         sys.exit(1)
 
     # Connect to the printer
@@ -60,18 +69,18 @@ if __name__ == "__main__":
 
     print('Connected to the printer')
 
-    print('Copying update/update.swu to /mnt/UDISK/update.swu')
+    print(f'Copying {firmware_path} to /mnt/UDISK/update.swu')
 
     scp = SCPClient(ssh.get_transport(), progress=handle_progress)
-    scp.put('update/update.swu', remote_path='/mnt/UDISK/update.swu', recursive=True)
+    scp.put(firmware_path, remote_path='/mnt/UDISK/update.swu', recursive=True)
     scp.close()
 
-    # md5sum update/update.swu with /mnt/UDISK/update.swu. If they don't match, try again 3 times
+    # Compare the local firmware with /mnt/UDISK/update.swu. If they don't match, try again 3 times.
     for i in range(3):
         # Get md5sum of both files
         stdin, stdout, stderr = ssh.exec_command('md5sum /mnt/UDISK/update.swu')
         md5sum_remote = stdout.read().decode('utf-8').split(' ')[0]
-        md5sum_local = os.popen('md5sum update/update.swu').read().split(' ')[0]
+        md5sum_local = os.popen(f'md5sum "{firmware_path}"').read().split(' ')[0]
 
         print(f'MD5 sum of local:  {md5sum_local}')
         print(f'MD5 sum of remote: {md5sum_remote}')
@@ -105,7 +114,5 @@ if __name__ == "__main__":
             # Delete the file and try again
             print(f'MD5 sums do not match... Trying again. Current attempt: {i+1}')
             ssh.exec_command('rm /mnt/UDISK/update.swu')
-            scp.put('update/update.swu', remote_path='/mnt/UDISK/update.swu', recursive=True)
+            scp.put(firmware_path, remote_path='/mnt/UDISK/update.swu', recursive=True)
             scp.close()
-
-

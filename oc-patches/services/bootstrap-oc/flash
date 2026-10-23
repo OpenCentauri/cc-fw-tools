@@ -68,4 +68,8 @@ sync
 
 [ "$status" -eq 0 ] || die "swupdate failed with exit code $status"
 
+echo "Cleaning-up old printer.cfg (will be re-generated on next boot of patched)..."
+echo
+rm -f /board-resource/printer.cfg
+
 echo "Update finished, run 'reboot' to finalize"

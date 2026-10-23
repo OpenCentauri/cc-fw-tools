@@ -104,7 +104,7 @@ OC_APP_BOOT_DELAY=0
     1. Stages, flashes or stages and flashes the file generated in update/update.sw by `pack.sh`.
     1. Run with no arguments for usage.
 1. Alternative (if just jailbroken but not running OpenCentauri yet):
-    1. Copy update/update.swu to USB stick, in the folder update, file update.swu
+    1. Copy the generated `.swu` from `update/` to a USB stick in a folder named `update`, renaming it to `update.swu`.
     1. Reboot the printer and it should detect an update is available!
 
 ## Special Commands on Printer

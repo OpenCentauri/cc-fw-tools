@@ -1,4 +1,5 @@
 import tomllib
+import json
 from enum import Enum
 import os
 import logging
@@ -87,6 +88,21 @@ class Patch:
         subprocess.run(self.run, shell=False, check=True, env=env, cwd=self.dir)
 
 
+def write_patch_list(path: str, patch_plan: list[Patch]):
+    patches = []
+    for order, patch in enumerate(patch_plan, start=1):
+        patches.append({
+            "order": order,
+            "id": patch.id,
+            "name": patch.name,
+            "path": os.path.relpath(patch.dir, REPOSITORY_ROOT),
+        })
+
+    with open(path, "w") as f:
+        json.dump(patches, f, indent=2)
+        f.write("\n")
+
+
 def load_toml(path : str) -> dict:
     with open(path, 'rb') as fp:
         return tomllib.load(fp)
@@ -119,11 +135,15 @@ def find_by_id(patches : list[Patch], patch_id : str) -> Patch:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s", handlers=[logging.StreamHandler(sys.stdout)])
 
-    if len(sys.argv) <= 1:
-        logging.fatal("Usage: python3 patch_planner.py <fw_version> [--dry-run]")
-        sys.exit(1)
+    import argparse
 
-    FW_VER = sys.argv[1]
+    parser = argparse.ArgumentParser(description="Apply the OpenCentauri firmware patch plan")
+    parser.add_argument("fw_version")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--patch-list", help="Write the successfully applied patch list to this JSON file")
+    args = parser.parse_args()
+
+    FW_VER = args.fw_version
 
     available_patches = load_patches()
     executable_patches = [x for x in available_patches if x.can_execute()]
@@ -148,7 +168,7 @@ if __name__ == "__main__":
     for patch in patch_plan:
         logging.info(f"- '{patch.name}'")
     
-    if "--dry-run" in sys.argv:
+    if args.dry_run:
         exit(0)
 
     logging.info("")
@@ -156,3 +176,6 @@ if __name__ == "__main__":
     for patch in patch_plan:
         logging.info(f"Applying patch '{patch.name}'...")
         patch.execute()
+
+    if args.patch_list:
+        write_patch_list(args.patch_list, patch_plan)

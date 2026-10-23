@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
-import subprocess, os
+import os
+import sys
 
 SQUASHFS_ROOT = os.getenv("SQUASHFS_ROOT")
 REPOSITORY_ROOT = os.getenv("REPOSITORY_ROOT")
@@ -11,31 +12,21 @@ if not SQUASHFS_ROOT:
 if not REPOSITORY_ROOT:
     raise RuntimeError("REPOSITORY_ROOT environment variable is required")
 
+sys.path.insert(0, os.path.join(REPOSITORY_ROOT, "TOOLS"))
+from firmware_version import firmware_version
+
 VERSION_OFFSETS = {
     "1.1.40": (0x34F6E8, b"1.1.40"),
     "1.4.46": (0x003F9A38, b"1.4.46"),
+    "1.4.49": (0x003FAE10, b"1.4.49"),
 }
 
-def extract_commit() -> str:
-    git_describe_output = subprocess.run(["git", "--git-dir", os.path.join(REPOSITORY_ROOT, ".git"), "describe", "--tags"], stdout=subprocess.PIPE, text=True, check=True).stdout.strip()
-    split_output = git_describe_output.split("-")
-
-    if (len(split_output) >= 3):
-        version = f"{split_output[0]}-{split_output[2][1:]}"
-    else:
-        version = split_output[0]
-
-    if version.startswith("v"):
-        return version[1:]
-
-    return version
-
 try:
-    version = extract_commit()
+    version = firmware_version(REPOSITORY_ROOT)
 except:
-    version = "Unknown"
+    version = "Unknown-oc"
 
-version = version + "-oc\0"
+version = version + "\0"
 encoded = version.encode(encoding="ASCII")
 print(version)
 

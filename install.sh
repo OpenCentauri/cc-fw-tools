@@ -27,18 +27,27 @@ fi
 
 ip="$2"
 
+firmware_path="update/update.swu"
+if [ -f update/manifest.json ]; then
+    firmware_path=$(python3 -c 'import json; print(json.load(open("update/manifest.json"))["final_firmware"]["path"])') || exit 1
+fi
+if [ ! -f "$firmware_path" ]; then
+    echo "Final firmware not found: $firmware_path"
+    exit 1
+fi
+
 # SCP file transfer
 if [ $stage -eq 1 ]; then
     # Only do this step for stage and sendit
     #echo "Mounting exUDISK if necessary and mapping old UDISK to exUDISK..."
     #ssh -p $port $usernaappuser@$ip 'mount -t vfat,exfat -o iocharset=utf8 /dev/sda1 /mnt/exUDISK ; mount --bind /mnt/exUDISK /user-resource'
     echo "Uploading..."
-    scp -o StrictHostKeyChecking=no -P $port update/update.swu $usernaappuser@$ip:/user-resource
+    scp -o StrictHostKeyChecking=no -P $port "$firmware_path" $usernaappuser@$ip:/user-resource/update.swu
 fi
 if [ $stage -eq 1 ] || [ $flash -eq 1 ]; then
     # Do this step for both stage, flash and sendit
     # MD5 Calculation
-    md5sum_local=$(md5sum update/update.swu | awk '{ print $1 }')
+    md5sum_local=$(md5sum "$firmware_path" | awk '{ print $1 }')
     echo "MD5 Local : $md5sum_local"
     md5sum_remote=$(ssh -p $port $usernaappuser@$ip "md5sum /user-resource/update.swu" | awk '{ print $1 }')
     echo "MD5 Remote: $md5sum_remote"
@@ -73,4 +82,3 @@ else
 fi
 echo "SUCCESS!"
 exit 0
-
