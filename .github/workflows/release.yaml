@@ -22,9 +22,11 @@ on:
         default: true
 
 permissions:
-  contents: write    # Required by softprops/action-gh-release@v2 to create releases and upload artifacts
-  id-token: write    # Required by actions/attest@v2 for OIDC authentication with the attestation service
-  attestations: write # Required by actions/attest@v2 to create and store attestations
+  contents: write      # Required by softprops/action-gh-release@v2 to create releases and upload artifacts
+  issues: write        # Required by the called build workflow (PR build summaries)
+  pull-requests: write # Required by the called build workflow (PR build summaries)
+  id-token: write      # Required by actions/attest@v2 for OIDC authentication with the attestation service
+  attestations: write  # Required by actions/attest@v2 to create and store attestations
 
 jobs:
   build:
