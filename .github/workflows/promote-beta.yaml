@@ -60,4 +60,7 @@ jobs:
             echo "No firmware .swu artifact was downloaded"
             exit 1
           fi
-          gh release upload "${VERSION}" "$swu_path" manifest.json patches.md --clobber
+          if [ "$swu_path" != "./update.swu" ] && [ "$swu_path" != "update.swu" ]; then
+            mv "$swu_path" update.swu
+          fi
+          gh release upload "${VERSION}" update.swu manifest.json patches.md --clobber

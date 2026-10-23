@@ -43,6 +43,19 @@ jobs:
         with:
           path: artifacts
 
+      - name: Name firmware asset update.swu
+        run: |
+          swu="$(find artifacts -type f -name '*.swu' -print -quit)"
+          if [ -z "$swu" ]; then
+            echo "no .swu found in build artifacts" >&2
+            exit 1
+          fi
+          dest="$(dirname "$swu")/update.swu"
+          if [ "$swu" != "$dest" ]; then
+            mv "$swu" "$dest"
+          fi
+          echo "firmware asset: $dest"
+
       - name: Find patch summary
         id: patch_summary
         run: |
