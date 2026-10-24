@@ -1,0 +1,5 @@
+id = "auto_dismiss_load_dialog"
+name = "Auto-dismiss the load-filament-complete dialog"
+execution_policy = "Always"
+compatible_versions = ["*"]
+after = ["bootstrap_oc"]
