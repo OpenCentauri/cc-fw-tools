@@ -4,7 +4,7 @@ This procedure can be performed when you already have a good backup and your pri
 
 To perform a restore follow these steps according to the current printer working state (Case A, B or C):
 
-## Case A
+## Case A (Recommended)
 
 In case your printer is in good working conditions (it can somehow boot) and you are using firmware version that has uboot enabled.
 
@@ -41,27 +41,20 @@ fatload usb 0:1 42000000 restore.scr
 For a system restore replace the above script name `restore.scr` with the name `srestore.scr`.
 
 4. Remove the USB disk with the scripts and insert the 8GB USB disk with the complete backup.
-5. ONLY IN CASE YOU DONT' HAVE A backups on a USB disk you can create them from the backup files on a Linux machine, otherwise go step 5.
+5. ONLY IN CASE YOU DONT' HAVE A backups on a USB disk you can create them from the backup files on a Linux machine, otherwise go to step 6:
 
-```sh
-dd if=emmc_backup.bin of=/dev/sdh  bs=512 count=15269888 status=progress
-```
+    `dd if=emmc_backup.bin of=/dev/sdh bs=512 count=15269888 status=progress` — replace the `/dev/sdh` with the device name of your USB disk. On Windows, write the image onto the USB stick with [`diskcpy`](https://github.com/suchmememanyskill/diskcpy/releases) instead (run **PowerShell as Administrator**): find the stick with `Get-CimInstance Win32_DiskDrive | Select-Object DeviceID, Model, Size`, then — **double-checking you target the USB stick and not a real disk, as this overwrites it** — `diskcpy.exe emmc_backup.bin \\.\PHYSICALDRIVE#`. (Balena Etcher's "Flash from file" works too.)
+6. Type the following to execute the script:
 
-Note: replace the `/dev/sdh` with the device name of your USB disk.
+    ```sh
+    source 42000000
+    ```
 
-1. Type the following to execute the script:
+    Wait about 15 minutes and the entire emmc will be restored 1:1 from the USB disk sector by sector. If you see an error and the script stopped before showing 100%, insert another type USB disk and enter again:
 
-```sh
-source 42000000
-```
-
-1. Wait about 15 minutes and the entire emmc will be restored 1:1 from the USB disk sector by sector
-   If you see an error and the script stopped before showing 100%, insert another type USB disk and enter again:
-
-```sh
-source 42000000
-```
-
+    ```sh
+    source 42000000
+    ```
 7. Reset the printer or power off / power on and you should have a fully working machine like at the time the backup was taken.
 
 ## Case B
