@@ -38,4 +38,9 @@ UPLOAD_DURING_PRINTING=true
 UBOOT=true
 UART=true
 MISC_APP=true
+# What release builds report as their firmware version. Bump this with each release
+# and tag the same version; without it the build falls back to git-describe, which on
+# main reports the previous release plus a commit count.
+OC_VERSION='0.5.1'
+
 SPOOF_SLICER_FIRMWARE_VERSION=true

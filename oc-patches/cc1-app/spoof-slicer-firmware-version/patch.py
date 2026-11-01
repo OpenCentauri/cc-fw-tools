@@ -7,12 +7,19 @@ Stock CC1 1.4.49 reads the version string from VA 0x0040ae10 for:
 - Direct request-attribute responses (VA 0x0037fbe4)
 
 This patch repoints the source pointer in all three functions to a new code cave at
-VA 0x004517e0 containing a fixed "1.4.49\\0" string. The original version string at
+VA 0x004517e0 containing a fixed "1.4.49 OC\\0" string. The original version string at
 VA 0x0040ae10 (logs, UI, OTA) is left untouched.
+
+The "OC" marker is deliberate. Home Assistant's elegoo_printer integration only creates
+the OpenCentauri-only sensors (total/current extrusion, which Spoolman reads) when the
+reported FirmwareVersion carries an "OC"/"O" marker - see
+custom_components/elegoo_printer/sdcp/models/printer.py:_is_open_centauri and
+sensor.py PRINTER_STATUS_FDM_OPEN_CENTAURI. A bare "1.4.49" makes the integration treat
+the printer as stock and it never creates the extrusion entities at all. The leading
+"1.4.49" is kept so ElegooSlicer still recognises the firmware.
 """
 
 import os
-import sys
 
 SQUASHFS_ROOT = os.getenv("SQUASHFS_ROOT")
 FW_VER = os.getenv("FW_VER", "1.4.49")
@@ -33,36 +40,48 @@ CAVE_FILE_OFFSET = CAVE_VA - 0x00010000
 
 EXPECTED_OLD = bytes.fromhex("103e0ae3403040e3")  # movw r3,#0xae10; movt r3,#0x40
 NEW_BYTES = bytes.fromhex("e03701e3453040e3")     # movw r3,#0x17e0; movt r3,#0x45
-CAVE_STRING = b"1.4.49\x00"     # 7 bytes, matching the stock 7-byte version slot
+# 11 bytes, ending at 0x004517ea. The next cave claim (wait_for_chamber_temp) starts at
+# 0x004517f0, so this stays inside the string's own region. The "OC" suffix is what makes
+# Home Assistant treat the printer as OpenCentauri and create the extrusion sensors.
+CAVE_STRING = b"1.4.49 OC\x00"
+CAVE_SIZE = 11
 
 
-def patch_movw_movt(label: str, offset: int) -> None:
-    with open(APP, "r+b") as fp:
-        fp.seek(offset)
-        old = fp.read(8)
-        if old != EXPECTED_OLD:
+SITES = (("udp_discovery", UDP_VERSION_PTR),
+         ("ws_attributes", WS_VERSION_PTR),
+         ("req_attribute", REQ_VERSION_PTR))
+
+
+def validate(data: bytes) -> None:
+    """Check every guarded byte before anything is written."""
+    for label, offset in SITES:
+        found = data[offset:offset + len(EXPECTED_OLD)]
+        if found != EXPECTED_OLD:
             raise RuntimeError(
                 f"{label}: expected {EXPECTED_OLD.hex()} at offset 0x{offset:08x}, "
-                f"found {old.hex()}; refusing to patch"
+                f"found {found.hex()}; refusing to patch"
             )
-        fp.seek(offset)
-        fp.write(NEW_BYTES)
-    print(f"{label}: patched 0x{offset:08x} (VA 0x{offset+0x10000:08x}) to point at 0x{CAVE_VA:08x}")
+    region = data[CAVE_FILE_OFFSET:CAVE_FILE_OFFSET + CAVE_SIZE]
+    if any(region):
+        raise RuntimeError(
+            f"cave at file offset 0x{CAVE_FILE_OFFSET:08x} is not zero-filled "
+            f"({region.hex()}); another patch already claimed it; refusing to patch"
+        )
 
 
-def write_cave() -> None:
-    with open(APP, "r+b") as fp:
-        fp.seek(CAVE_FILE_OFFSET)
-        before = fp.read(len(CAVE_STRING))
-        if any(before):
-            print(f"WARNING: cave at file offset 0x{CAVE_FILE_OFFSET:08x} was not zero-filled before write", file=sys.stderr)
-        fp.seek(CAVE_FILE_OFFSET)
-        fp.write(CAVE_STRING)
-    print(f"wrote cave string {CAVE_STRING!r} at file offset 0x{CAVE_FILE_OFFSET:08x} (VA 0x{CAVE_VA:08x})")
+def apply(data: bytes) -> dict[int, bytes]:
+    return {offset: NEW_BYTES for _, offset in SITES} | {CAVE_FILE_OFFSET: CAVE_STRING}
 
 
 if __name__ == "__main__":
-    patch_movw_movt("udp_discovery", UDP_VERSION_PTR)
-    patch_movw_movt("ws_attributes", WS_VERSION_PTR)
-    patch_movw_movt("req_attribute", REQ_VERSION_PTR)
-    write_cave()
+    with open(APP, "rb") as fp:
+        image = fp.read()
+    validate(image)
+    with open(APP, "r+b") as fp:
+        for offset, payload in apply(image).items():
+            fp.seek(offset)
+            fp.write(payload)
+    for label, offset in SITES:
+        print(f"{label}: patched 0x{offset:08x} (VA 0x{offset + 0x10000:08x}) to point at 0x{CAVE_VA:08x}")
+    print(f"wrote cave string {CAVE_STRING!r} at file offset 0x{CAVE_FILE_OFFSET:08x} "
+          f"({CAVE_SIZE} bytes, VA 0x{CAVE_VA:08x})")

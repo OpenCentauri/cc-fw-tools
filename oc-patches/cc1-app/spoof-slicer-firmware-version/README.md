@@ -3,8 +3,8 @@
 ## Purpose
 
 Override the firmware version reported to ElegooSlicer in SDCP attribute responses
-so the slicer sees the stock `1.4.49` version instead of the actual OpenCentauri
-version (`0.5.0-beta-<sha>-oc`). The real version string at `0x0040ae10` is left
+so the slicer sees a stock-shaped `1.4.49 OC` instead of the actual OpenCentauri
+version (`0.5.1-oc`). The real version string at `0x0040ae10` is left
 untouched so local logs, UI labels, and OTA update checks still show the correct
 version.
 
@@ -37,8 +37,24 @@ movt r3, #0x45     ; r3 = 0x004517e0
 ```
 
 The cave is a 2KB zero run in `.rodata` (claimed in `../AGENT-1.4.49.md` cave
-table) and receives the 7-byte string `1.4.49\0`, matching the stock 7-byte
-copy before `sprintf("V%s", ...)`.
+table) and receives the 11-byte string `1.4.49 OC\0`, ending at `0x004517ea` -
+the next claim (`wait_for_chamber_temp`) starts at `0x004517f0`. The stock copy
+before `sprintf("V%s", ...)` was 7 bytes; the output buffer is 0x80+, so the
+extra bytes cost nothing at runtime.
+
+## Why the `OC` marker
+
+ElegooSlicer needs a version it recognises, but Home Assistant's `elegoo_printer`
+integration needs to know the firmware is OpenCentauri. It only registers the
+OpenCentauri-only sensors - `total_extrusion` / `current_extrusion`, which Spoolman
+reads - when `Printer._is_open_centauri(model, firmware)` finds an `OC`/`O` marker in
+the reported `FirmwareVersion` (`sensor.py` → `printer.open_centauri` →
+`PRINTER_STATUS_FDM_OPEN_CENTAURI`). A bare `1.4.49` makes HA treat the printer as
+stock and the extrusion entities are never created at all.
+
+So the spoofed string is `1.4.49 OC` → clients see `V1.4.49 OC`: the leading version
+keeps the slicer happy, the marker keeps HA on the OpenCentauri entity set.
+`tests/test_spoof_slicer_firmware_version.py` locks both halves of that contract.
 
 NOTE: the 1.4.46 cave `0x00450e00` is OCCUPIED in 1.4.49 (string data) — do not
 reuse it.
@@ -52,8 +68,12 @@ seeing the OC version. Write order between the two patches does not matter.
 
 ## Verification
 
-- `patch.py` refuses to apply if the guard bytes differ (wrong firmware or
-  already patched).
+- `patch.py` validates all four regions before writing a byte, and refuses if the
+  guard bytes differ (wrong firmware or already patched) or the cave is no longer
+  zero-filled (another patch claimed it).
 - After applying to a stock `app-1.4.49`: the three sites disassemble to
-  `movw r3,#0x17e0; movt r3,#0x45`, `0x004517e0` reads `1.4.49\0`, and
+  `movw r3,#0x17e0; movt r3,#0x45`, `0x004517e0` reads `1.4.49 OC\0`, and
   `0x0040ae10` is unchanged.
+- `tests/test_spoof_slicer_firmware_version.py` covers the byte patch, the cave
+  string, region confinement, non-mutating guard failures, and the HA/slicer
+  contract on the reported string.
