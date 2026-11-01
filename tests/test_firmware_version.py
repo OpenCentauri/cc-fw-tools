@@ -25,6 +25,11 @@ class FirmwareVersionTests(unittest.TestCase):
         self.assertEqual(version(OC_VERSION="0.5.1"), "0.5.1-oc")
         self.assertEqual(version(OC_VERSION="v0.5.1"), "0.5.1-oc")
 
+    def test_manifest_tools_see_the_declared_version_without_env(self):
+        # create_manifest.py and the patch summary run outside patch_planner's
+        # environment, so the edition file has to carry the version on its own.
+        self.assertEqual(version(), "0.5.1-oc")
+
     def test_integrate_branch_beta_still_wins_over_declared_version(self):
         self.assertEqual(version(OC_BUILD_BRANCH="v0.5.1-integrate", OC_BUILD_COMMIT="abcdef1234",
                                  OC_VERSION="0.5.1"), "0.5.1-beta-abcdef1-oc")
