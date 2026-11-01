@@ -63,9 +63,19 @@ The observer sends no motion, heat, or print commands. Idle-only manual extrusio
 may not update stock PrintStats, so it is not sufficient acceptance.
 Source procedure: https://github.com/OpenCentauri/cc-fw-tools/pull/106#issuecomment-5357240641
 
-## Home Assistant / Spoolman caveat
+## Home Assistant / Spoolman
 
-The independent slicer-version spoof may make HA identify this as stock firmware
-and omit extrusion entities. Raw fields passing does not prove HA/Spoolman works.
-Keep the spoof policy unchanged here; verify the installed integration's entity
-registration and actual spool accounting before claiming end-to-end success.
+These fields alone are not enough for HA: `elegoo_printer` only registers its
+OpenCentauri-only sensors - `total_extrusion` and `current_extrusion`, which Spoolman
+reads - when it believes the firmware is OpenCentauri
+(`PRINTER_STATUS_FDM_OPEN_CENTAURI` in `custom_components/elegoo_printer/definitions.py`,
+gated on `printer.open_centauri` in `sensor.py`, computed by
+`Printer._is_open_centauri(model, firmware)` from an `OC`/`O` marker in the reported
+`FirmwareVersion`). A bare stock version string makes the integration treat the printer
+as stock and it never creates those entities, so raw fields passing does not prove
+HA/Spoolman works.
+
+The slicer spoof therefore reports `1.4.49 OC` instead of `1.4.49`: the leading version
+keeps ElegooSlicer recognising the firmware, and the marker keeps HA on the
+OpenCentauri entity set. Verify both on a device before claiming end-to-end success -
+the slicer side is the unproven half.

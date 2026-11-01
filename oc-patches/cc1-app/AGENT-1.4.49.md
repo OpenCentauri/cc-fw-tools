@@ -8,7 +8,7 @@ The 1.4.49 app binary uses rodata zero runs as caves (the whole rodata sits in t
 
 | Cave Address | Used By | Size | End |
 |--------------|---------|------|-----|
-| `0x004517e0` | `spoof_slicer_firmware_version` (spoofed version string) | 8 bytes | `0x004517e7` |
+| `0x004517e0` | `spoof_slicer_firmware_version` (spoofed version string, `1.4.49 OC`) | 11 bytes | `0x004517ea` |
 | `0x004517f0` | `wait_for_chamber_temp` trampoline (code) | 216 bytes | `0x004518c8` |
 | `[0x4518d0,0x451994)` | `report_filament_usage` injected fn (code) | 196 bytes | `0x451993` |
 | `0x004519a0` | `report_filament_usage` key strings (data) | 34 bytes | `0x004519c1` |
@@ -19,8 +19,9 @@ The 1.4.49 app binary uses rodata zero runs as caves (the whole rodata sits in t
 
 ### `set-firmware-version-patch` (1.4.49)
 **Type:** Data string replacement (script-driven)
-- File offset `0x003FAE10` (VA `0x0040ae10`): stock `"1.4.49\0\0"` replaced with the OpenCentauri git-describe version (e.g. `"0.5.0-<sha>-oc"`).
+- File offset `0x003FAE10` (VA `0x0040ae10`): stock `"1.4.49\0\0"` replaced with the OpenCentauri version (e.g. `"0.5.1-oc"`).
 - Applied by `patch.py` with a stock-bytes guard. Version string consumers (~15 sites, all `movw`/`movt` pairs) are left pointing at the same address.
+- The version comes from `TOOLS/firmware_version.py`: `vX.Y.Z-integrate` branches report `X.Y.Z-beta-<sha>-oc`, otherwise the `OC_VERSION` value declared in `firmware-editions/patched` wins, otherwise `git describe --tags`. Bump `OC_VERSION` with each release.
 **No cave used.**
 
 ### `add-chamber-light-gcode-patch` (1.4.49)
@@ -54,8 +55,10 @@ The 1.4.49 app binary uses rodata zero runs as caves (the whole rodata sits in t
   - WebSocket/MQTT attributes: site `0x0036bd64` (file `0x0035bd64`)
   - Direct request-attribute: site `0x0037fbe4` (file `0x0036fbe4`)
 - Guard bytes (all three sites): `103e0ae3 403040e3` → new bytes `e03701e3 453040e3` (`movw r3,#0x17e0; movt r3,#0x45`).
-- Disjoint from `set-firmware-version`; write order does not matter. Slicer sees `1.4.49`, logs/UI/OTA keep the OC version.
-**String cave at `0x004517e0`.** See `spoof-slicer-firmware-version/README.md`.
+- Disjoint from `set-firmware-version`; write order does not matter. Slicer sees `1.4.49 OC`, logs/UI/OTA keep the OC version.
+- The `OC` marker is load-bearing: Home Assistant's `elegoo_printer` only creates the OpenCentauri-only filament sensors when `FirmwareVersion` carries an `OC`/`O` marker (`sensor.py` → `printer.open_centauri` → `Printer._is_open_centauri`). Without it, HA never registers `total_extrusion`/`current_extrusion` and Spoolman sees nothing, no matter what the printer pushes.
+- The patch validates all four regions before writing any byte, and refuses if the cave is no longer zero (another patch claimed it).
+**String cave at `0x004517e0`, 11 bytes.** See `spoof-slicer-firmware-version/README.md`.
 
 ### `allow-uploads-during-printing-patch` (1.4.49)
 **Type:** Python direct binary patch (`patch.py` via `patch.sh` FW_VER branch; two-pass byte-guarded)
