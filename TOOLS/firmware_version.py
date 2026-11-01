@@ -34,6 +34,16 @@ def firmware_version(repo_root: str) -> str:
         )
         return f"{m.group(1)}-beta-{sha[:7]}-oc"
 
+    # Release builds declare the version they ship instead of inheriting whatever
+    # tag git-describe lands on: main is always ahead of the last release tag, so
+    # describe would report the previous version plus a commit count.
+    declared = os.getenv("OC_VERSION")
+    if declared:
+        m = re.fullmatch(r"v?(\d+\.\d+\.\d+)", declared.strip())
+        if not m:
+            raise ValueError(f"OC_VERSION must be X.Y.Z or vX.Y.Z, got {declared!r}")
+        return f"{m.group(1)}-oc"
+
     command = ["describe", "--tags"]
     build_commit = os.getenv("OC_BUILD_COMMIT")
     if build_commit:
