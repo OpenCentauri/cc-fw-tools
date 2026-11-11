@@ -12,8 +12,9 @@ The 1.4.49 app binary uses rodata zero runs as caves (the whole rodata sits in t
 | `0x004517f0` | `wait_for_chamber_temp` trampoline (code) | 216 bytes | `0x004518c8` |
 | `0x004518d0` | `report_filament_usage` injected fn (code) | 196 bytes | `0x00451994` |
 | `0x004519a0` | `report_filament_usage` key strings (data) | 34 bytes | `0x004519c1` |
+| `0x004519d0` | `fix_canvas_resume_channel` trampoline (code) | 24 bytes | `0x004519e7` |
 
-(All in the ~2KB rodata zero run `0x004517e0`–`0x00451fb8`. `report_filament_usage` also uses bss state doubles at `0x004b4788`/`0x004b4790` — runtime-zero, no file backing. Remaining free: `0x004519c2`–`0x00451fb8` (~1.5KB), the `0x00451fe3` run (~2KB), and four ~240B `0x0044exxx` slots. NOTE: the 1.4.46 cave `0x00450e00` is OCCUPIED in 1.4.49 — never reuse 1.4.46 cave addresses without checking. File→VA bias is `+0x10000` below file `0x48ed08` and `+0x20000` in the RW LOAD.)
+(All in the ~2KB rodata zero run `0x004517e0`–`0x00451fb8`. `report_filament_usage` also uses bss state doubles at `0x004b4788`/`0x004b4790` — runtime-zero, no file backing. Remaining free: `0x004519c2`–`0x004519cf`, `0x004519e8`–`0x00451fb8` (~1.5KB), the `0x00451fe3` run (~2KB), and four ~240B `0x0044exxx` slots. NOTE: the 1.4.46 cave `0x00450e00` is OCCUPIED in 1.4.49 — never reuse 1.4.46 cave addresses without checking. File→VA bias is `+0x10000` below file `0x48ed08` and `+0x20000` in the RW LOAD.)
 
 ## Patch-by-Patch Breakdown
 
@@ -90,6 +91,14 @@ The 1.4.49 app binary uses rodata zero runs as caves (the whole rodata sits in t
 - Hook `0x0037f9ec` (12B movw/movt/vcvt triplet) → `movw ip,#0x18d0; movt ip,#0x45; bx ip`; fn in cave `0x004518d0` (196B).
 - Emits `TotalExtrusion` (key `0x4519a0`) + `CurrentExtrusion` (key `0x4519b0`) via JSON helper `0x2c9b80` (r0=json obj = r4 at hook); E total from `[[0x4b27bc]+0xf8]+0x1c0`; bss prev/delta at `0x4b4788`/`0x4b4790` (runtime-zero, no file backing); resume `0x37f9fc` (cave replays TotalLayer — no double-emit). Idle path `0x37f858` unhooked (parity).
 **Caves `0x004518d0` + `0x004519a0`; bss `0x4b4788`/`0x4b4790`.** See `report-filament-usage/README-1.4.49.md`.
+
+### `fix-canvas-resume-channel` (1.4.49)
+**Type:** Conditional branch hook + 24-byte trampoline (`patch.py`).
+- `M6211` at `0x00278d60`: `beq 0x2794c8` becomes `beq 0x4519d0`.
+- When the selected physical channel is already active, the trampoline calls the existing `set_current_print_channel_id` virtual slot (`state` at `[r11+0x4c]`, vtable offset `0x58`, selected physical channel in `r5`), then branches back to the original already-loaded log/return at `0x2794c8`.
+- This is the same setter used by the normal path at `0x278d9c..0x278dac`. It updates the physical channel later read by `RESUME`; other branches and the original log/return remain intact.
+- Guards cover the M6211 handler, state getter/setter, vtable, app size and empty cave. The patch refuses unsupported firmware or overlapping modifications before writing.
+**Cave `0x004519d0`–`0x004519e7`.** See `fix-canvas-resume-channel/README-1.4.49.md`.
 
 ## 1.4.49 Binary Notes
 
