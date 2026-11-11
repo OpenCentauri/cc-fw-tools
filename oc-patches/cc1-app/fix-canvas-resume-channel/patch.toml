@@ -1,0 +1,5 @@
+id = "fix_canvas_resume_channel"
+name = "Keep the CANVAS Resume channel in sync when filament is already loaded"
+after = ["base"]
+compatible_versions = ["1.4.49"]
+run = ["python3", "./patch.py"]
